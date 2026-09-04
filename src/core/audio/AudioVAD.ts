@@ -32,10 +32,16 @@ export class AudioVAD {
   private isRunning: boolean = false;
   private currentRawLevel: number = 0;
   private lastActiveTimestamp: number = 0;
+  private disconnectListeners: Set<() => void> = new Set();
 
   constructor(store: ParameterStore, config: Partial<VADConfig> = {}) {
     this.store = store;
     this.config = { ...DEFAULT_VAD_CONFIG, ...config };
+  }
+
+  public onDeviceDisconnected(callback: () => void): () => void {
+    this.disconnectListeners.add(callback);
+    return () => this.disconnectListeners.delete(callback);
   }
 
   public async start(deviceId?: string): Promise<void> {
@@ -53,6 +59,15 @@ export class AudioVAD {
     this.mediaStream = await navigator.mediaDevices.getUserMedia({
       audio: audioConstraints,
       video: false,
+    });
+
+    // Monitor track ended (device unplugged / permissions revoked)
+    this.mediaStream.getAudioTracks().forEach((track) => {
+      track.onended = () => {
+        console.warn('[AudioVAD] Microphone track ended (device disconnected)');
+        this.stop();
+        this.disconnectListeners.forEach((cb) => cb());
+      };
     });
 
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;

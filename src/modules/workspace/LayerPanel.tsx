@@ -13,6 +13,7 @@ interface LayerPanelProps {
   onDeleteLayer: (layerId: string) => void;
   onImportPng: () => void;
   onAutoAssignRoles?: () => void;
+  isImporting?: boolean;
 }
 
 export const LayerPanel: React.FC<LayerPanelProps> = ({
@@ -25,6 +26,7 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({
   onDeleteLayer,
   onImportPng,
   onAutoAssignRoles,
+  isImporting = false,
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>('');
@@ -87,9 +89,10 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({
             className="action-btn btn-primary"
             style={{ fontSize: '11px', padding: '5px 9px' }}
             onClick={onImportPng}
+            disabled={isImporting}
             title="Import external transparent PNG asset(s)"
           >
-            <span>➕ PNG</span>
+            <span>{isImporting ? '⏳ Importing...' : '➕ PNG'}</span>
           </button>
         </div>
       </div>

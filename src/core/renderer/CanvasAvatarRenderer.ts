@@ -113,6 +113,11 @@ export class CanvasAvatarRenderer {
     this.ctx.clearRect(0, 0, this.virtualWidth, this.virtualHeight);
 
     for (const item of state.activeLayers) {
+      // Performance optimization: skip transformation and drawing for invisible layers
+      if (item.layer.visible === false || item.opacity <= 0) {
+        continue;
+      }
+
       const img = this.assetCache.get(item.assetId);
 
       this.ctx.save();

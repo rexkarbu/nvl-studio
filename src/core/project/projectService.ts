@@ -92,12 +92,14 @@ export class ProjectService {
     const result = parseAndValidateManifest(content);
 
     if (!result.valid || !result.manifest) {
-      // Backup corrupted file to avoid accidental data loss
+      // Backup corrupted file to avoid accidental data loss if no backup exists
       try {
         const backupPath = `${filePath}.bak`;
-        fs.copyFileSync(filePath, backupPath);
+        if (!fs.existsSync(backupPath)) {
+          fs.copyFileSync(filePath, backupPath);
+        }
       } catch {
-        // Ignore backup failure if directory is read-only
+        // Ignore failure if directory is read-only
       }
       throw new Error(`Failed to load project: ${result.error}`);
     }
@@ -116,6 +118,15 @@ export class ProjectService {
     filePath: string,
     manifest: ProjectManifest
   ): Promise<ProjectManifest> {
+    // Create backup of existing file before overwrite
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.copyFileSync(filePath, `${filePath}.bak`);
+      } catch {
+        // ignore backup copy failure in read-only environments
+      }
+    }
+
     const updated: ProjectManifest = {
       ...manifest,
       metadata: {
@@ -126,6 +137,24 @@ export class ProjectService {
 
     fs.writeFileSync(filePath, JSON.stringify(updated, null, 2), 'utf-8');
     return updated;
+  }
+
+  /**
+   * Restores a project from its .bak backup file.
+   */
+  public static async restoreBackup(filePath: string): Promise<ProjectLoadResult> {
+    const backupPath = `${filePath}.bak`;
+    if (!fs.existsSync(backupPath)) {
+      throw new Error(`Backup file not found: ${backupPath}`);
+    }
+
+    const result = await this.openProject(backupPath);
+    fs.copyFileSync(backupPath, filePath);
+    return {
+      manifest: result.manifest,
+      projectDir: path.dirname(filePath),
+      filePath,
+    };
   }
 
   /**

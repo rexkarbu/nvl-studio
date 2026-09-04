@@ -22,6 +22,21 @@ export interface AssetImportResult {
   error?: string;
 }
 
+export interface DialogMessageBoxOptions {
+  type?: 'none' | 'info' | 'error' | 'question' | 'warning';
+  buttons?: string[];
+  defaultId?: number;
+  title?: string;
+  message: string;
+  detail?: string;
+  cancelId?: number;
+}
+
+export interface DialogMessageBoxReturnValue {
+  response: number;
+  checkboxChecked?: boolean;
+}
+
 export interface NvlDesktopApi {
   getServerInfo: () => Promise<ServerInfo>;
   newProject: (projectName?: string) => Promise<ProjectOperationResult>;
@@ -34,6 +49,7 @@ export interface NvlDesktopApi {
   onTriggerSave: (callback: (options?: { closeAfterSave?: boolean }) => void) => () => void;
   onProjectDirty: (callback: (dirty: boolean) => void) => () => void;
   importPng: () => Promise<AssetImportResult>;
+  showMessageBox: (options: DialogMessageBoxOptions) => Promise<DialogMessageBoxReturnValue>;
 }
 
 const nvlDesktopApi: NvlDesktopApi = {
@@ -45,6 +61,7 @@ const nvlDesktopApi: NvlDesktopApi = {
   getCurrentProject: () => ipcRenderer.invoke('nvl:project-get-current'),
   setDirty: (dirty: boolean) => ipcRenderer.invoke('nvl:project-set-dirty', dirty),
   promptSaveChanges: () => ipcRenderer.invoke('nvl:prompt-save-changes'),
+  showMessageBox: (options: DialogMessageBoxOptions) => ipcRenderer.invoke('nvl:show-message-box', options),
   onTriggerSave: (callback: (options?: { closeAfterSave?: boolean }) => void) => {
     const listener = (_event: any, opts: any) => callback(opts);
     ipcRenderer.on('nvl:trigger-save', listener);

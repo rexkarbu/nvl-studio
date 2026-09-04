@@ -15,6 +15,7 @@ import { ControlsPanel } from './modules/workspace/ControlsPanel';
 import { BroadcastPanel } from './modules/workspace/BroadcastPanel';
 import { LiveOutputApp } from './modules/live/LiveOutputApp';
 import { ValidationBanner } from './modules/workspace/ValidationBanner';
+import { WelcomeScreen } from './modules/workspace/WelcomeScreen';
 import { useDirtyState } from './modules/workspace/useDirtyState';
 import { SemanticLayerRole } from './core/project/types';
 import {
@@ -49,6 +50,10 @@ export const App: React.FC = () => {
   );
   const [activeSidebarTab, setActiveSidebarTab] = useState<'inspector' | 'controls'>('inspector');
 
+  const [isProjectOpen, setIsProjectOpen] = useState<boolean>(false);
+  const [isLoadingProject, setIsLoadingProject] = useState<boolean>(false);
+  const [isImportingPng, setIsImportingPng] = useState<boolean>(false);
+
   const { isDirty, markDirty, markClean } = useDirtyState(false);
 
   // Core Subsystems
@@ -57,6 +62,34 @@ export const App: React.FC = () => {
   const blinkRef = useRef<BlinkScheduler>(new BlinkScheduler(storeRef.current));
   const vadRef = useRef<AudioVAD>(new AudioVAD(storeRef.current));
   const broadcasterRef = useRef<LiveBroadcaster | null>(null);
+
+  // Native message dialog helper
+  const showMessage = useCallback(
+    async (title: string, message: string, type: 'info' | 'error' | 'warning' = 'info') => {
+      if ((window as any).nvlDesktop?.showMessageBox) {
+        await (window as any).nvlDesktop.showMessageBox({
+          type,
+          title,
+          message,
+        });
+      } else {
+        alert(`${title}\n\n${message}`);
+      }
+    },
+    []
+  );
+
+  // Monitor microphone disconnection
+  useEffect(() => {
+    const unsub = vadRef.current.onDeviceDisconnected(() => {
+      showMessage(
+        'Microphone Disconnected',
+        'Your active microphone device was disconnected. Voice activity detection has been stopped.',
+        'warning'
+      );
+    });
+    return unsub;
+  }, [showMessage]);
 
   // Keep manifestRef synced for closures
   const manifestRef = useRef<ProjectManifest>(manifest);
@@ -148,23 +181,30 @@ export const App: React.FC = () => {
     const canProceed = await confirmSaveIfDirty();
     if (!canProceed) return;
 
-    if ((window as any).nvlDesktop?.newProject) {
-      const res = await (window as any).nvlDesktop.newProject();
-      if (!res.canceled) {
-        if (res.error) {
-          alert(`Failed to create new project: ${res.error}`);
-        } else if (res.manifest) {
-          setManifest(res.manifest);
-          setSelectedLayerId(res.manifest.layers[0]?.id || null);
-          storeRef.current.reset();
-          markClean();
+    setIsLoadingProject(true);
+    try {
+      if ((window as any).nvlDesktop?.newProject) {
+        const res = await (window as any).nvlDesktop.newProject();
+        if (!res.canceled) {
+          if (res.error) {
+            await showMessage('Create Project Error', `Failed to create new project: ${res.error}`, 'error');
+          } else if (res.manifest) {
+            setManifest(res.manifest);
+            setSelectedLayerId(res.manifest.layers[0]?.id || null);
+            storeRef.current.reset();
+            markClean();
+            setIsProjectOpen(true);
+          }
         }
+      } else {
+        setManifest(DEFAULT_PROJECT_MANIFEST);
+        setSelectedLayerId(DEFAULT_PROJECT_MANIFEST.layers[0]?.id || null);
+        storeRef.current.reset();
+        markClean();
+        setIsProjectOpen(true);
       }
-    } else {
-      setManifest(DEFAULT_PROJECT_MANIFEST);
-      setSelectedLayerId(DEFAULT_PROJECT_MANIFEST.layers[0]?.id || null);
-      storeRef.current.reset();
-      markClean();
+    } finally {
+      setIsLoadingProject(false);
     }
   };
 
@@ -172,21 +212,38 @@ export const App: React.FC = () => {
     const canProceed = await confirmSaveIfDirty();
     if (!canProceed) return;
 
-    if ((window as any).nvlDesktop?.openProject) {
-      const res = await (window as any).nvlDesktop.openProject();
-      if (!res.canceled) {
-        if (res.error) {
-          alert(`Failed to open project: ${res.error}`);
-        } else if (res.manifest) {
-          setManifest(res.manifest);
-          setSelectedLayerId(res.manifest.layers[0]?.id || null);
-          storeRef.current.reset();
-          markClean();
+    setIsLoadingProject(true);
+    try {
+      if ((window as any).nvlDesktop?.openProject) {
+        const res = await (window as any).nvlDesktop.openProject();
+        if (!res.canceled) {
+          if (res.error) {
+            await showMessage('Open Project Error', `Failed to open project: ${res.error}`, 'error');
+          } else if (res.manifest) {
+            setManifest(res.manifest);
+            setSelectedLayerId(res.manifest.layers[0]?.id || null);
+            storeRef.current.reset();
+            markClean();
+            setIsProjectOpen(true);
+          }
         }
+      } else {
+        await showMessage('Open Project', 'Open Project dialog is only available in Electron Desktop app.', 'info');
       }
-    } else {
-      alert('Open Project dialog is only available in Electron Desktop app.');
+    } finally {
+      setIsLoadingProject(false);
     }
+  };
+
+  const handleLoadSample = async () => {
+    const canProceed = await confirmSaveIfDirty();
+    if (!canProceed) return;
+
+    setManifest(DEFAULT_PROJECT_MANIFEST);
+    setSelectedLayerId(DEFAULT_PROJECT_MANIFEST.layers[0]?.id || null);
+    storeRef.current.reset();
+    markClean();
+    setIsProjectOpen(true);
   };
 
   const handleSaveProject = useCallback(async (): Promise<boolean> => {
@@ -195,7 +252,7 @@ export const App: React.FC = () => {
       const res = await (window as any).nvlDesktop.saveProject(currentManifest);
       if (!res.canceled) {
         if (res.error) {
-          alert(`Failed to save project: ${res.error}`);
+          await showMessage('Save Project Error', `Failed to save project: ${res.error}`, 'error');
           return false;
         } else if (res.manifest) {
           setManifest(res.manifest);
@@ -212,10 +269,11 @@ export const App: React.FC = () => {
       a.href = url;
       a.download = `${currentManifest.projectId}.nvl`;
       a.click();
+      URL.revokeObjectURL(url);
       markClean();
       return true;
     }
-  }, [markClean]);
+  }, [markClean, showMessage]);
 
   const handleSaveProjectAs = async () => {
     const currentManifest = manifestRef.current;
@@ -223,7 +281,7 @@ export const App: React.FC = () => {
       const res = await (window as any).nvlDesktop.saveProjectAs(currentManifest);
       if (!res.canceled) {
         if (res.error) {
-          alert(`Failed to save project as: ${res.error}`);
+          await showMessage('Save Project Error', `Failed to save project as: ${res.error}`, 'error');
         } else if (res.manifest) {
           setManifest(res.manifest);
           markClean();
@@ -237,36 +295,49 @@ export const App: React.FC = () => {
   // Layer & Asset Operations
   const handleImportPng = async () => {
     if ((window as any).nvlDesktop?.importPng) {
-      const res = await (window as any).nvlDesktop.importPng();
-      if (!res.canceled && res.assets && res.assets.length > 0) {
-        let maxZIndex = manifest.layers.reduce((max: number, l: CharacterLayer) => Math.max(max, l.zIndex), -1);
-        const newAssets = [...manifest.assets];
-        const newLayers = [...manifest.layers];
-        let lastCreatedId: string | null = null;
+      setIsImportingPng(true);
+      try {
+        const res = await (window as any).nvlDesktop.importPng();
+        if (res.error) {
+          await showMessage('Asset Import Failed', res.error, 'error');
+          return;
+        }
 
-        for (const asset of res.assets) {
-          if (!newAssets.some((a) => a.id === asset.id)) {
-            newAssets.push(asset);
+        if (!res.canceled && res.assets && res.assets.length > 0) {
+          let maxZIndex = manifest.layers.reduce((max: number, l: CharacterLayer) => Math.max(max, l.zIndex), -1);
+          const newAssets = [...manifest.assets];
+          const newLayers = [...manifest.layers];
+          let lastCreatedId: string | null = null;
+
+          for (const asset of res.assets) {
+            if (!newAssets.some((a) => a.id === asset.id)) {
+              newAssets.push(asset);
+            }
+            maxZIndex += 1;
+            const layer = createDefaultLayer(asset, maxZIndex);
+            newLayers.push(layer);
+            lastCreatedId = layer.id;
           }
-          maxZIndex += 1;
-          const layer = createDefaultLayer(asset, maxZIndex);
-          newLayers.push(layer);
-          lastCreatedId = layer.id;
-        }
 
-        setManifest((prev) => ({
-          ...prev,
-          assets: newAssets,
-          layers: newLayers,
-        }));
-        if (lastCreatedId) {
-          setSelectedLayerId(lastCreatedId);
-          setActiveSidebarTab('inspector');
+          setManifest((prev) => ({
+            ...prev,
+            assets: newAssets,
+            layers: newLayers,
+            metadata: { ...prev.metadata, updatedAt: new Date().toISOString() },
+          }));
+          if (lastCreatedId) {
+            setSelectedLayerId(lastCreatedId);
+            setActiveSidebarTab('inspector');
+          }
+          markDirty();
         }
-        markDirty();
+      } catch (err: any) {
+        await showMessage('Asset Import Error', err.message || 'An error occurred during import', 'error');
+      } finally {
+        setIsImportingPng(false);
       }
     } else {
-      alert('PNG Import is available in the NVL Desktop application.');
+      await showMessage('PNG Import', 'PNG Import is available in the NVL Desktop application.', 'info');
     }
   };
 
@@ -446,19 +517,34 @@ export const App: React.FC = () => {
         onSaveProjectAs={handleSaveProjectAs}
       />
 
-      <main className="workspace-layout">
-        {/* Left Column: Layer Panel */}
-        <LayerPanel
-          layers={manifest.layers}
-          selectedLayerId={selectedLayerId}
-          onSelectLayer={handleSelectLayer}
-          onReorderLayers={handleReorderLayers}
-          onRenameLayer={handleRenameLayer}
-          onToggleVisibility={handleToggleVisibility}
-          onDeleteLayer={handleDeleteLayer}
-          onImportPng={handleImportPng}
-          onAutoAssignRoles={handleAutoAssignRoles}
+      {isLoadingProject && (
+        <div className="project-loading-overlay" data-testid="loading-overlay">
+          <div className="loading-spinner"></div>
+          <span>Loading project...</span>
+        </div>
+      )}
+
+      {!isProjectOpen ? (
+        <WelcomeScreen
+          onNewProject={handleNewProject}
+          onOpenProject={handleOpenProject}
+          onLoadSample={handleLoadSample}
         />
+      ) : (
+        <main className="workspace-layout">
+          {/* Left Column: Layer Panel */}
+          <LayerPanel
+            layers={manifest.layers}
+            selectedLayerId={selectedLayerId}
+            onSelectLayer={handleSelectLayer}
+            onReorderLayers={handleReorderLayers}
+            onRenameLayer={handleRenameLayer}
+            onToggleVisibility={handleToggleVisibility}
+            onDeleteLayer={handleDeleteLayer}
+            onImportPng={handleImportPng}
+            onAutoAssignRoles={handleAutoAssignRoles}
+            isImporting={isImportingPng}
+          />
 
         {/* Center Column: Interactive Canvas Stage & Broadcast Panel */}
         <div className="workspace-main-column">
@@ -519,6 +605,7 @@ export const App: React.FC = () => {
           )}
         </aside>
       </main>
+      )}
     </div>
   );
 };

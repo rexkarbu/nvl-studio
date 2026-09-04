@@ -56,7 +56,14 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
         </button>
       </div>
 
-      <div className="server-status-pill">
+      <div
+        className="server-status-pill"
+        title={
+          serverPort
+            ? `Local Broadcast Server active on 127.0.0.1:${serverPort}. Connects directly to OBS Browser Source.`
+            : 'Starting embedded local WebSocket & HTTP server...'
+        }
+      >
         <span className={`status-indicator-dot ${serverPort ? 'online' : 'offline'}`} />
         <span className="status-text">
           {serverPort ? `Local Server: 127.0.0.1:${serverPort}` : 'Server Starting...'}

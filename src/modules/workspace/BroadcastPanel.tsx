@@ -68,25 +68,29 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({ serverPort, proj
             <input
               type="text"
               readOnly
-              value={targetUrl}
+              value={serverPort ? targetUrl : 'Starting local server...'}
               className="url-input-field"
             />
             <button
               className={`copy-btn ${copied ? 'copied' : ''}`}
               onClick={handleCopyUrl}
+              disabled={!serverPort}
             >
               {copied ? '✓ Copied!' : '📋 Copy URL'}
             </button>
             <button
               className="open-btn"
               onClick={handleOpenBrowser}
+              disabled={!serverPort}
               title="Open in new browser tab to inspect transparency"
             >
               ↗ Test in Browser
             </button>
           </div>
           <p className="url-hint">
-            Target: <code>127.0.0.1:{port}</code> (Local only, 0% cloud dependency, 100% transparent background)
+            {serverPort
+              ? `Target: 127.0.0.1:${serverPort} (Local only, 0% cloud dependency, 100% transparent background)`
+              : 'Initializing local embedded server...'}
           </p>
         </div>
 

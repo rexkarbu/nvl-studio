@@ -34,6 +34,10 @@ Thumbs.db
 
 # NVL Project backups & temporary test artifacts
 *.nvl.bak
+*.bak
+*.corrupt
 temp/
 scratch/
 tes/
+.kilo/
+

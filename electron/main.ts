@@ -21,6 +21,24 @@ let closePendingAfterSave: boolean = false;
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
+// Production hardening: suppress console.log in packaged builds
+if (!isDev) {
+  console.log = () => {};
+}
+
+// Single Instance Lock: prevent running multiple app instances simultaneously
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
+
 async function startAppServer(): Promise<LocalServer> {
   const server = new LocalServer({
     preferredPort: 17777,
@@ -118,6 +136,35 @@ function setupIpcHandlers(): void {
       mainWindow.webContents.send('nvl:project-dirty-changed', false);
       return { canceled: false, filePath: res.filePath, projectDir: res.projectDir, manifest: res.manifest };
     } catch (err: any) {
+      const backupPath = `${filePath}.bak`;
+      if (fs.existsSync(backupPath) && mainWindow) {
+        const choice = await dialog.showMessageBox(mainWindow, {
+          type: 'warning',
+          buttons: ['Restore Backup', 'Cancel'],
+          defaultId: 0,
+          cancelId: 1,
+          title: 'Corrupted Project Detected',
+          message: 'The selected project file is corrupted or failed validation.',
+          detail: `${err.message}\n\nA backup copy (.bak) exists. Would you like to restore from backup?`,
+        });
+
+        if (choice.response === 0) {
+          try {
+            const restored = await ProjectService.openProject(backupPath);
+            fs.copyFileSync(backupPath, filePath);
+            currentProjectPath = filePath;
+            currentProjectDir = restored.projectDir;
+            if (localServer) {
+              localServer.setProjectDir(restored.projectDir);
+            }
+            isAppDirty = false;
+            mainWindow.webContents.send('nvl:project-dirty-changed', false);
+            return { canceled: false, filePath, projectDir: restored.projectDir, manifest: restored.manifest };
+          } catch (restoreErr: any) {
+            return { canceled: false, error: `Backup restore failed: ${restoreErr.message}` };
+          }
+        }
+      }
       return { canceled: false, error: err.message };
     }
   });
@@ -229,6 +276,11 @@ function setupIpcHandlers(): void {
     }
 
     return { canceled: false, assets: importedAssets };
+  });
+
+  ipcMain.handle('nvl:show-message-box', async (_event, options: any) => {
+    if (!mainWindow) return { response: 0 };
+    return dialog.showMessageBox(mainWindow, options);
   });
 }
 
@@ -362,5 +414,12 @@ app.on('window-all-closed', async () => {
       localServer = null;
     }
     app.quit();
+  }
+});
+
+app.on('will-quit', async () => {
+  if (localServer) {
+    await localServer.stop();
+    localServer = null;
   }
 });

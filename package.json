@@ -14,7 +14,36 @@
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win"
+  },
+  "build": {
+    "appId": "com.nvlstudio.nvl",
+    "productName": "NVL Studio",
+    "directories": {
+      "output": "dist/releases"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "sample_avatar/**/*",
+      "public/assets/icon.ico"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "public/assets/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "public/assets/icon.ico",
+      "uninstallerIcon": "public/assets/icon.ico"
+    }
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -28,6 +57,7 @@
     "@types/ws": "^8.5.14",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^34.2.0",
+    "electron-builder": "^26.15.3",
     "jsdom": "^26.0.0",
     "typescript": "^5.7.3",
     "vite": "^6.1.0",

@@ -1264,3 +1264,261 @@ body {
   border-color: var(--accent-primary, #7f5af0);
 }
 
+/* ==========================================================================
+   MVP Hardening & Welcome Screen (STEP 11)
+   ========================================================================== */
+.welcome-screen-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  width: 100%;
+  height: calc(100vh - 48px);
+  background: radial-gradient(circle at center, #1e1e2f 0%, #111019 100%);
+  padding: 24px;
+}
+
+.welcome-screen-card {
+  max-width: 680px;
+  width: 100%;
+  background: var(--bg-surface, #16161e);
+  border: 1px solid var(--border-color, #2e2c40);
+  border-radius: var(--radius-lg, 12px);
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+}
+
+.welcome-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.welcome-logo-badge {
+  background: linear-gradient(135deg, var(--accent-primary, #7f5af0) 0%, #2cb67d 100%);
+  color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 2px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(127, 90, 240, 0.35);
+}
+
+.welcome-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-main, #fffffe);
+  margin: 0 0 10px 0;
+  letter-spacing: -0.5px;
+}
+
+.welcome-subtitle {
+  font-size: 13px;
+  color: var(--text-muted, #94a1b2);
+  line-height: 1.6;
+  max-width: 520px;
+  margin: 0;
+}
+
+.welcome-actions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 32px;
+}
+
+.welcome-action-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color, #2e2c40);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  color: inherit;
+}
+
+.welcome-action-card:hover {
+  background: rgba(127, 90, 240, 0.08);
+  border-color: var(--accent-primary, #7f5af0);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.welcome-action-card.primary {
+  border-color: rgba(127, 90, 240, 0.5);
+  background: rgba(127, 90, 240, 0.05);
+}
+
+.welcome-action-card.primary:hover {
+  background: rgba(127, 90, 240, 0.15);
+  border-color: var(--accent-primary, #7f5af0);
+}
+
+.action-card-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.action-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.action-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main, #fffffe);
+}
+
+.action-card-desc {
+  font-size: 12px;
+  color: var(--text-muted, #94a1b2);
+}
+
+.welcome-features-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.feature-pill {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-dim, #72757e);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+/* Error Boundary Screen */
+.error-boundary-screen {
+  position: fixed;
+  inset: 0;
+  background: #100e17;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 24px;
+}
+
+.error-boundary-card {
+  max-width: 640px;
+  width: 100%;
+  background: #171520;
+  border: 1px solid #ff5470;
+  border-radius: 12px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(255, 84, 112, 0.15);
+}
+
+.error-boundary-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.error-boundary-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fffffe;
+  margin: 0 0 8px 0;
+}
+
+.error-boundary-message {
+  font-size: 13px;
+  color: #94a1b2;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.error-boundary-details {
+  width: 100%;
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.error-boundary-error-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #ff5470;
+  background: rgba(255, 84, 112, 0.08);
+  border: 1px solid rgba(255, 84, 112, 0.2);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+
+.error-boundary-stack {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #94a1b2;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 10px;
+  border-radius: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.error-boundary-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  justify-content: center;
+}
+
+/* Project Loading Overlay */
+.project-loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 14, 23, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 10000;
+  color: #fffffe;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(127, 90, 240, 0.2);
+  border-top-color: #7f5af0;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+

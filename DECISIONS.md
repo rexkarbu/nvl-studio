@@ -143,4 +143,40 @@ Step 10 memperkenalkan konfigurasi animator (idle bobbing avatar, auto-blink tun
 5. **Backward Compatibility Manifest Schema**:
    - Menambahkan field opsional `idleConfig?: IdleConfig` dan `blinkConfig?: BlinkSettings` pada `ProjectManifest`. Proyek lama tanpa kedua field ini tetap valid dan otomatis menggunakan nilai default.
 
+---
+
+## ADR 008: MVP Hardening, Windows Release Packaging & Resilience Architecture
+
+### Status
+Accepted
+
+### Konteks
+Step 11 merupakan penutup Stage B (Gate 2: MVP Hardening & Windows Release). Fokusnya adalah menjamin stabilitas aplikasi untuk sesi streaming 30+ menit tanpa crash, memaketkan installer Windows (NSIS & Portable), serta menangani seluruh edge case kegagalan (project file korup, tabrakan port, pemutusan mikrofon mendadak, beban render layer tersembunyi).
+
+### Keputusan Arsitektur
+1. **Distribusi Windows Ganda (NSIS + Portable)**:
+   - Dikonfigurasi via `electron-builder` (`win.target: ["nsis", "portable"]`).
+   - Output installer: `dist/releases/NVL Setup 0.1.0.exe` (dengan opsi kustomisasi direktori instalasi) dan `dist/releases/NVL 0.1.0.exe` (portable zero-install).
+   - Icon aplikasi multi-resolusi format Windows ICO valid di `public/assets/icon.ico`.
+2. **Single Instance Lock**:
+   - Memanfaatkan `app.requestSingleInstanceLock()`. Peluncuran instans kedua otomatis fokus/restore ke jendela instans aktif dan menghentikan instans duplikat untuk mencegah tabrakan port local server dan database file lock.
+3. **Strict Content Security Policy (CSP)**:
+   - Header meta CSP ketat di `index.html`: membatasi `connect-src 'self' ws://127.0.0.1:* http://127.0.0.1:*`, font Google Fonts (`https://fonts.googleapis.com https://fonts.gstatic.com`), serta menolak koneksi eksternal yang tidak diotorisasi.
+4. **Production Hardening & Clean Exit**:
+   - Pembungkaman `console.log` otomatis pada production build (`app.isPackaged`) untuk menghemat buffer I/O.
+   - Hook lifecycle `app.on('will-quit')` dan `before-quit` memastikan server lokal HTTP/WebSocket berhenti bersih tanpa meninggalkan proses zombie `node.exe`.
+5. **Auto-Backup & Crash Resilience**:
+   - `saveProject()` otomatis membuat salinan `<project>.nvl.bak` sebelum menimpa file yang ada di disk.
+   - Penanganan file korup non-destruktif: `openProject()` tidak menimpa `.bak` valid, dan menyediakan helper `restoreBackup()` jika file utama rusak.
+   - React `ErrorBoundary` menangkap exception unhandled pada render UI, menyediakan opsi "Reload Application" dan unduhan darurat "Export Crash Report" format JSON.
+6. **Hardware & Port Conflict Handling**:
+   - `AudioVAD.onDeviceDisconnected`: memantau status `MediaStreamTrack.onended` dan menampilkan peringatan native dialog jika perangkat mikrofon dicabut saat streaming.
+   - `resolveAvailablePort`: memindai port incremental secara dinamis mulai dari 17777 hingga 17807 jika port preferensi sedang digunakan aplikasi lain.
+7. **Invisible Layer Render Optimization**:
+   - Pada `CanvasAvatarRenderer`, layer dengan `visible === false` atau `opacity <= 0` dilewati (skip) sebelum operasi `ctx.save()`, affine transformations (`translate`, `rotate`, `scale`), dan `drawImage()`, mempertahankan kestabilan 60 FPS pada rig avatar kompleks.
+8. **UX Polish (Welcome Screen & Loading Overlays)**:
+   - Tampilan pembuka ramah pemula saat belum ada proyek yang dibuka, dengan 3 kartu aksi utama: "Create New Project", "Open Existing Project", dan "Open Sample Avatar" (Chibi Cat).
+   - Loading overlay dengan spinner animasi selama operasi I/O proyek, serta bridge pesan native dialog via `dialog.showMessageBox`.
+
+
 
