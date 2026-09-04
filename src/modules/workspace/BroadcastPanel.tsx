@@ -7,10 +7,11 @@ interface BroadcastPanelProps {
 
 export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({ serverPort, projectId }) => {
   const [copied, setCopied] = useState<boolean>(false);
+  const [bgMode, setBgMode] = useState<'transparent' | 'green'>('transparent');
 
   // Always target the dedicated NVL Local Server (port 17777 or resolved serverPort)
   const port = serverPort || 17777;
-  const targetUrl = `http://127.0.0.1:${port}/live/${projectId}`;
+  const targetUrl = `http://127.0.0.1:${port}/live/${projectId}${bgMode === 'green' ? '?bg=green' : ''}`;
 
   const handleCopyUrl = async () => {
     try {
@@ -40,6 +41,23 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({ serverPort, proj
         <div className="panel-title-group">
           <span className="panel-title">OBS Browser Source Broadcast</span>
           <span className="status-badge-live">Modul 3: Live Output</span>
+        </div>
+
+        <div className="bg-toggle-group">
+          <button
+            className={`toggle-btn ${bgMode === 'transparent' ? 'active' : ''}`}
+            onClick={() => setBgMode('transparent')}
+            title="Transparent (Alpha Channel)"
+          >
+            Transparent
+          </button>
+          <button
+            className={`toggle-btn ${bgMode === 'green' ? 'active' : ''}`}
+            onClick={() => setBgMode('green')}
+            title="Chroma Green Screen"
+          >
+            Green Screen
+          </button>
         </div>
       </div>
 

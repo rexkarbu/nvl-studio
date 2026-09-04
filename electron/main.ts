@@ -217,6 +217,7 @@ async function createWindow(): Promise<void> {
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
+      backgroundThrottling: false,
     },
   });
 

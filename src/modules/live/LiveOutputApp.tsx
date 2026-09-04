@@ -35,6 +35,20 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({ projectId: propPro
 
   const projectId = getActiveProjectId();
   const isDebugMode = new URLSearchParams(window.location.search).get('debug') === '1';
+  const isChroma =
+    new URLSearchParams(window.location.search).get('bg') === 'green' ||
+    new URLSearchParams(window.location.search).get('chroma') === '1';
+
+  useEffect(() => {
+    if (isChroma) {
+      document.body.classList.add('bg-chroma-green');
+    } else {
+      document.body.classList.remove('bg-chroma-green');
+    }
+    return () => {
+      document.body.classList.remove('bg-chroma-green');
+    };
+  }, [isChroma]);
 
   useEffect(() => {
     if (!canvasRef.current) return;

@@ -69,3 +69,11 @@ body,
   50% { opacity: 1; }
   100% { opacity: 0.4; }
 }
+
+body.bg-chroma-green,
+body.bg-chroma-green #root,
+body.bg-chroma-green .live-output-container {
+  background: #00e600 !important;
+  background-color: #00e600 !important;
+}
+
