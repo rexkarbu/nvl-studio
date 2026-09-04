@@ -172,4 +172,88 @@ export class CanvasAvatarRenderer {
   public getCanvas(): HTMLCanvasElement {
     return this.canvas;
   }
+
+  public getAssetDimensions(assetId: string): { width: number; height: number } | null {
+    const img = this.assetCache.get(assetId);
+    if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+      return { width: img.naturalWidth, height: img.naturalHeight };
+    }
+    return null;
+  }
+
+  /**
+   * Draws an interactive selection bounding box, handles, and rotation anchor over the canvas.
+   */
+  public drawSelectionOverlay(
+    layer: { x: number; y: number; scaleX: number; scaleY: number; rotation: number },
+    width: number,
+    height: number
+  ): void {
+    const ctx = this.ctx;
+    ctx.save();
+
+    // Translate to layer center
+    ctx.translate(layer.x, layer.y);
+    if (layer.rotation !== 0) {
+      ctx.rotate((layer.rotation * Math.PI) / 180);
+    }
+    if (layer.scaleX !== 1 || layer.scaleY !== 1) {
+      ctx.scale(layer.scaleX, layer.scaleY);
+    }
+
+    const halfW = width / 2;
+    const halfH = height / 2;
+
+    const baseScale = Math.max(Math.abs(layer.scaleX || 1), Math.abs(layer.scaleY || 1), 0.1);
+
+    // Draw bounding box
+    ctx.strokeStyle = '#7f5af0';
+    ctx.lineWidth = 2 / baseScale;
+    ctx.setLineDash([6 / baseScale, 4 / baseScale]);
+    ctx.strokeRect(-halfW, -halfH, width, height);
+    ctx.setLineDash([]);
+
+    // Draw rotation stem line & anchor
+    const stemLength = 32 / (layer.scaleY || 1);
+    ctx.beginPath();
+    ctx.moveTo(0, -halfH);
+    ctx.lineTo(0, -halfH - stemLength);
+    ctx.strokeStyle = '#7f5af0';
+    ctx.stroke();
+
+    // Handle styling helper
+    const drawHandle = (hx: number, hy: number, isCircle = false) => {
+      const handleSize = 9 / baseScale;
+      ctx.fillStyle = '#fffffe';
+      ctx.strokeStyle = '#7f5af0';
+      ctx.lineWidth = 2 / baseScale;
+
+      if (isCircle) {
+        ctx.beginPath();
+        ctx.arc(hx, hy, handleSize / 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.fillRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
+        ctx.strokeRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
+      }
+    };
+
+    // 4 Corner handles
+    drawHandle(-halfW, -halfH);
+    drawHandle(halfW, -halfH);
+    drawHandle(-halfW, halfH);
+    drawHandle(halfW, halfH);
+
+    // 4 Side handles
+    drawHandle(0, -halfH);
+    drawHandle(0, halfH);
+    drawHandle(-halfW, 0);
+    drawHandle(halfW, 0);
+
+    // Rotation handle
+    drawHandle(0, -halfH - stemLength, true);
+
+    ctx.restore();
+  }
 }

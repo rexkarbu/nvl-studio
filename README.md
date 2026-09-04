@@ -7,7 +7,7 @@
 ![Electron](https://img.shields.io/badge/Electron-34+-47848F?style=flat&logo=electron&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-6+-646CFF?style=flat&logo=vite&logoColor=white)
 ![OBS Studio](https://img.shields.io/badge/OBS_Studio-Compatible-302E31?style=flat&logo=obsstudio&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-46_Passed-brightgreen?style=flat&logo=vitest&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-66_Passed-brightgreen?style=flat&logo=vitest&logoColor=white)
 
 **An all-in-one desktop application for PNGtubers and streamers.**  
 Create, animate, and broadcast responsive 2D avatars directly to OBS Studio in real-time.
@@ -196,10 +196,14 @@ nvl/
   - Manifest schema validation (`schemaVersion: 1`) & corrupted file `.bak` recovery
   - Dirty state tracking and window close protection
   - Missing asset fallback rendering
-- [ ] **Stage B: Character Creator (Steps 8–10)**
-  - In-app canvas drawing tools (pencil, eraser, bucket fill)
-  - External transparent PNG asset importing
-  - Multi-layer management & transform controls
+- [x] **Stage B: Character Creator Foundation (Step 8)**
+  - Multi-select native PNG asset import with 8-byte magic-header validation & collision suffixing
+  - Full-featured Layer Panel (reorder zIndex, inline rename, hide/show, delete)
+  - Comprehensive Transform Inspector (position, aspect-locked scale, rotation slider, opacity)
+  - Interactive Canvas Stage with direct selection, 8 scale handles + rotation stalk, mouse pan, zoom, and arrow nudges
+  - Discord window occlusion background throttling mitigation (`backgroundThrottling: false`)
+- [ ] **Stage B: Semantic Roles & Rigging Rules (Step 9)**
+- [ ] **Stage B: Animator Loop & Parameter Binding (Step 10)**
 - [ ] **Stage C: Advanced Animator (Steps 11–14)**
   - Multi-frame frame-by-frame animation loops
   - Custom hotkey expressions (Happy, Sad, Angry, Surprised)

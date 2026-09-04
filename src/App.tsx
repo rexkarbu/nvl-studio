@@ -8,11 +8,20 @@ import { DEFAULT_PROJECT_MANIFEST } from './core/project/defaultProject';
 import { CharacterLayer, ProjectManifest } from './core/project/types';
 
 import { TopMenuBar } from './modules/workspace/TopMenuBar';
-import { PreviewPanel } from './modules/workspace/PreviewPanel';
+import { LayerPanel } from './modules/workspace/LayerPanel';
+import { CanvasStage } from './modules/workspace/CanvasStage';
+import { LayerInspector } from './modules/workspace/LayerInspector';
 import { ControlsPanel } from './modules/workspace/ControlsPanel';
 import { BroadcastPanel } from './modules/workspace/BroadcastPanel';
 import { LiveOutputApp } from './modules/live/LiveOutputApp';
 import { useDirtyState } from './modules/workspace/useDirtyState';
+import {
+  createDefaultLayer,
+  renameLayer,
+  toggleVisibility,
+  deleteLayer,
+  updateTransform,
+} from './core/project/layerOperations';
 
 export const App: React.FC = () => {
   // Check if current route is Live Output (path /live/* or hash #/live/*)
@@ -27,6 +36,10 @@ export const App: React.FC = () => {
   const [manifest, setManifest] = useState<ProjectManifest>(DEFAULT_PROJECT_MANIFEST);
   const [serverPort, setServerPort] = useState<number | null>(null);
   const [missingAssetsCount, setMissingAssetsCount] = useState<number>(0);
+  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(
+    DEFAULT_PROJECT_MANIFEST.layers[0]?.id || null
+  );
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'inspector' | 'controls'>('inspector');
 
   const { isDirty, markDirty, markClean } = useDirtyState(false);
 
@@ -134,12 +147,14 @@ export const App: React.FC = () => {
           alert(`Failed to create new project: ${res.error}`);
         } else if (res.manifest) {
           setManifest(res.manifest);
+          setSelectedLayerId(res.manifest.layers[0]?.id || null);
           storeRef.current.reset();
           markClean();
         }
       }
     } else {
       setManifest(DEFAULT_PROJECT_MANIFEST);
+      setSelectedLayerId(DEFAULT_PROJECT_MANIFEST.layers[0]?.id || null);
       storeRef.current.reset();
       markClean();
     }
@@ -156,6 +171,7 @@ export const App: React.FC = () => {
           alert(`Failed to open project: ${res.error}`);
         } else if (res.manifest) {
           setManifest(res.manifest);
+          setSelectedLayerId(res.manifest.layers[0]?.id || null);
           storeRef.current.reset();
           markClean();
         }
@@ -210,13 +226,93 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleUpdateLayers = (updatedLayers: CharacterLayer[]) => {
+  // Layer & Asset Operations
+  const handleImportPng = async () => {
+    if ((window as any).nvlDesktop?.importPng) {
+      const res = await (window as any).nvlDesktop.importPng();
+      if (!res.canceled && res.assets && res.assets.length > 0) {
+        let maxZIndex = manifest.layers.reduce((max: number, l: CharacterLayer) => Math.max(max, l.zIndex), -1);
+        const newAssets = [...manifest.assets];
+        const newLayers = [...manifest.layers];
+        let lastCreatedId: string | null = null;
+
+        for (const asset of res.assets) {
+          if (!newAssets.some((a) => a.id === asset.id)) {
+            newAssets.push(asset);
+          }
+          maxZIndex += 1;
+          const layer = createDefaultLayer(asset, maxZIndex);
+          newLayers.push(layer);
+          lastCreatedId = layer.id;
+        }
+
+        setManifest((prev) => ({
+          ...prev,
+          assets: newAssets,
+          layers: newLayers,
+        }));
+        if (lastCreatedId) {
+          setSelectedLayerId(lastCreatedId);
+          setActiveSidebarTab('inspector');
+        }
+        markDirty();
+      }
+    } else {
+      alert('PNG Import is available in the NVL Desktop application.');
+    }
+  };
+
+  const handleReorderLayers = (updatedLayers: CharacterLayer[]) => {
     setManifest((prev) => ({
       ...prev,
       layers: updatedLayers,
     }));
     markDirty();
   };
+
+  const handleRenameLayer = (layerId: string, newName: string) => {
+    setManifest((prev) => ({
+      ...prev,
+      layers: renameLayer(prev.layers, layerId, newName),
+    }));
+    markDirty();
+  };
+
+  const handleToggleVisibility = (layerId: string) => {
+    setManifest((prev) => ({
+      ...prev,
+      layers: toggleVisibility(prev.layers, layerId),
+    }));
+    markDirty();
+  };
+
+  const handleDeleteLayer = (layerId: string) => {
+    setManifest((prev) => ({
+      ...prev,
+      layers: deleteLayer(prev.layers, layerId),
+    }));
+    if (selectedLayerId === layerId) {
+      setSelectedLayerId(null);
+    }
+    markDirty();
+  };
+
+  const handleUpdateLayerTransform = (layerId: string, updates: Partial<CharacterLayer>) => {
+    setManifest((prev) => ({
+      ...prev,
+      layers: updateTransform(prev.layers, layerId, updates),
+    }));
+    markDirty();
+  };
+
+  const handleSelectLayer = (layerId: string | null) => {
+    setSelectedLayerId(layerId);
+    if (layerId) {
+      setActiveSidebarTab('inspector');
+    }
+  };
+
+  const selectedLayer = manifest.layers.find((l) => l.id === selectedLayerId) || null;
 
   // Keyboard shortcut Ctrl+S / Cmd+S
   useEffect(() => {
@@ -264,25 +360,66 @@ export const App: React.FC = () => {
       />
 
       <main className="workspace-layout">
+        {/* Left Column: Layer Panel */}
+        <LayerPanel
+          layers={manifest.layers}
+          selectedLayerId={selectedLayerId}
+          onSelectLayer={handleSelectLayer}
+          onReorderLayers={handleReorderLayers}
+          onRenameLayer={handleRenameLayer}
+          onToggleVisibility={handleToggleVisibility}
+          onDeleteLayer={handleDeleteLayer}
+          onImportPng={handleImportPng}
+        />
+
+        {/* Center Column: Interactive Canvas Stage & Broadcast Panel */}
         <div className="workspace-main-column">
-          <PreviewPanel
+          <CanvasStage
             manifest={manifest}
             store={storeRef.current}
+            selectedLayerId={selectedLayerId}
             serverPort={serverPort}
+            onSelectLayer={handleSelectLayer}
+            onUpdateLayer={handleUpdateLayerTransform}
+            onDeleteLayer={handleDeleteLayer}
             onMissingAssetsChange={(missing) => setMissingAssetsCount(missing.length)}
           />
           <BroadcastPanel serverPort={serverPort} projectId={manifest.projectId} />
         </div>
 
+        {/* Right Column: Tabbed Inspector & Live Controls */}
         <aside className="workspace-sidebar">
-          <ControlsPanel
-            store={storeRef.current}
-            talkSimulator={talkSimRef.current}
-            blinkScheduler={blinkRef.current}
-            audioVAD={vadRef.current}
-            manifest={manifest}
-            onUpdateLayers={handleUpdateLayers}
-          />
+          <div className="sidebar-tab-bar">
+            <button
+              className={`sidebar-tab-btn ${activeSidebarTab === 'inspector' ? 'active' : ''}`}
+              onClick={() => setActiveSidebarTab('inspector')}
+            >
+              🔍 Inspector
+            </button>
+            <button
+              className={`sidebar-tab-btn ${activeSidebarTab === 'controls' ? 'active' : ''}`}
+              onClick={() => setActiveSidebarTab('controls')}
+            >
+              🎙️ Live Controls
+            </button>
+          </div>
+
+          {activeSidebarTab === 'inspector' ? (
+            <LayerInspector
+              layer={selectedLayer}
+              onUpdateTransform={handleUpdateLayerTransform}
+              onDeleteLayer={handleDeleteLayer}
+            />
+          ) : (
+            <ControlsPanel
+              store={storeRef.current}
+              talkSimulator={talkSimRef.current}
+              blinkScheduler={blinkRef.current}
+              audioVAD={vadRef.current}
+              manifest={manifest}
+              onUpdateLayers={handleReorderLayers}
+            />
+          )}
         </aside>
       </main>
     </div>

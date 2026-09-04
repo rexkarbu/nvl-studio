@@ -1,8 +1,15 @@
 import { app, BrowserWindow, ipcMain, dialog, session } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import { LocalServer } from './server/localServer';
 import { ProjectService } from '../src/core/project/projectService';
-import { ProjectManifest } from '../src/core/project/types';
+import { ProjectManifest, ProjectAssetEntry } from '../src/core/project/types';
+import {
+  sanitizeFilename,
+  generateAssetId,
+  validatePngBuffer,
+  resolveUniqueAssetFilename,
+} from '../src/core/project/assetImporter';
 
 let mainWindow: BrowserWindow | null = null;
 let localServer: LocalServer | null = null;
@@ -164,6 +171,64 @@ function setupIpcHandlers(): void {
     if (choice.response === 0) return 'save';
     if (choice.response === 1) return 'discard';
     return 'cancel';
+  });
+
+  ipcMain.handle('nvl:asset-import-png', async () => {
+    if (!mainWindow) return { canceled: true };
+
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Import PNG Asset(s)',
+      filters: [{ name: 'PNG Images (*.png)', extensions: ['png'] }],
+      properties: ['openFile', 'multiSelections'],
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { canceled: true };
+    }
+
+    let targetDir = currentProjectDir;
+    if (!targetDir) {
+      targetDir = path.join(app.getPath('temp'), 'nvl_staging');
+      currentProjectDir = targetDir;
+      if (localServer) {
+        localServer.setProjectDir(targetDir);
+      }
+    }
+    const assetsDir = path.join(targetDir, 'assets');
+    if (!fs.existsSync(assetsDir)) {
+      fs.mkdirSync(assetsDir, { recursive: true });
+    }
+
+    const importedAssets: ProjectAssetEntry[] = [];
+
+    for (const filePath of result.filePaths) {
+      try {
+        const buffer = fs.readFileSync(filePath);
+        if (!validatePngBuffer(buffer)) {
+          continue; // Skip non-PNG or corrupted files
+        }
+
+        const baseName = path.basename(filePath, path.extname(filePath));
+        const sanitized = sanitizeFilename(baseName);
+        const uniqueFileName = resolveUniqueAssetFilename(assetsDir, sanitized);
+        const destPath = path.join(assetsDir, uniqueFileName);
+
+        fs.copyFileSync(filePath, destPath);
+
+        const assetEntry: ProjectAssetEntry = {
+          id: generateAssetId(baseName),
+          name: baseName,
+          path: `assets/${uniqueFileName}`,
+          format: 'png',
+        };
+
+        importedAssets.push(assetEntry);
+      } catch (err) {
+        console.error('[Main IPC] Failed to import asset:', filePath, err);
+      }
+    }
+
+    return { canceled: false, assets: importedAssets };
   });
 }
 

@@ -73,3 +73,23 @@ Sinkronisasi antara NVL Desktop Controller dan OBS Browser Source terjadi secara
 
 ### Keputusan
 Menggunakan pustaka **`ws`** di server Node.js dan native browser WebSocket API di client.
+
+---
+
+## ADR 005: Character Creator — In-House Canvas Interactions & Center Anchor Model
+
+### Status
+Accepted
+
+### Konteks
+Step 8 memperkenalkan Character Creator Foundation: import multi-PNG, layer management (reorder zIndex, rename, hide/show, delete), transform inspector, dan direct manipulation di Canvas Stage (hit-testing, dragging, 8-handle scaling, rotation stalk, pan, zoom, keyboard nudges).
+
+### Alternatif Dipertimbangkan
+- **Konva.js / Fabric.js / react-dnd**: Framework besar dengan bundle footprint 300KB–800KB. Membawa kompleksitas abstraksi object tree tersendiri, duplikasi scene graph yang sulit disinkronkan dengan `ProjectManifest.layers` immutable state NVL, dan overhead event synthetic.
+- **Top-Left Anchor (0, 0)**: Memudahkan perhitungan bounding box sederhana, namun menghasilkan rotasi dan scaling yang tidak natural bagi avatar (avatar berputar di sudut kiri atas kepala dan membesar miring ke kanan bawah).
+
+### Keputusan
+1. **Zero External Canvas/Drag Dependencies**: Menggunakan native Pointer Events (`setPointerCapture`), CSS transforms untuk viewport pan/zoom, dan Canvas 2D overlay rendering.
+2. **Center Anchor Model `[-w/2, -h/2]` to `[w/2, h/2]`**: Koordinat `(layer.x, layer.y)` selalu merepresentasikan titik tengah layer. Hit-testing mentransformasikan cursor screen ke local center space dengan translasi `(-x, -y)`, rotasi balik `-rotation`, dan pembagian `(scaleX, scaleY)`.
+3. **Staging Directory untuk Proyek Untitled**: Asset PNG yang diimpor sebelum user menekan "Save As" disimpan di staging folder lokal (`temp/nvl_staging/assets`) dan otomatis disalin ke direktori proyek tujuan saat disimpan.
+

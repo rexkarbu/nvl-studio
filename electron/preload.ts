@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { ProjectManifest } from '../src/core/project/types';
+import { ProjectManifest, ProjectAssetEntry } from '../src/core/project/types';
 
 export interface ServerInfo {
   host: string;
@@ -16,6 +16,12 @@ export interface ProjectOperationResult {
   error?: string;
 }
 
+export interface AssetImportResult {
+  canceled: boolean;
+  assets?: ProjectAssetEntry[];
+  error?: string;
+}
+
 export interface NvlDesktopApi {
   getServerInfo: () => Promise<ServerInfo>;
   newProject: (projectName?: string) => Promise<ProjectOperationResult>;
@@ -27,6 +33,7 @@ export interface NvlDesktopApi {
   promptSaveChanges: () => Promise<'save' | 'discard' | 'cancel'>;
   onTriggerSave: (callback: (options?: { closeAfterSave?: boolean }) => void) => () => void;
   onProjectDirty: (callback: (dirty: boolean) => void) => () => void;
+  importPng: () => Promise<AssetImportResult>;
 }
 
 const nvlDesktopApi: NvlDesktopApi = {
@@ -52,6 +59,7 @@ const nvlDesktopApi: NvlDesktopApi = {
       ipcRenderer.removeListener('nvl:project-dirty-changed', listener);
     };
   },
+  importPng: () => ipcRenderer.invoke('nvl:asset-import-png'),
 };
 
 // Expose safe API to renderer through contextBridge
