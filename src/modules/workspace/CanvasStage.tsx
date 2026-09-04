@@ -4,6 +4,7 @@ import { CharacterResolver } from '../../core/resolver/CharacterResolver';
 import { CanvasAvatarRenderer } from '../../core/renderer/CanvasAvatarRenderer';
 import { CharacterLayer, ProjectManifest } from '../../core/project/types';
 import { AvatarParameters } from '../../core/parameters/types';
+import { IdleBobEngine } from '../../core/animation/IdleBobEngine';
 import {
   ViewportState,
   DEFAULT_VIEWPORT,
@@ -74,23 +75,28 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   const [spacePressed, setSpacePressed] = useState<boolean>(false);
 
   // Re-render canvas helper
-  const redraw = useCallback(() => {
-    if (!rendererRef.current) return;
-    const renderer = rendererRef.current;
+  const redraw = useCallback(
+    (idleBobOffset: number = 0) => {
+      if (!rendererRef.current) return;
+      const renderer = rendererRef.current;
 
-    // 1. Render character layers
-    const resolved = CharacterResolver.resolve(manifest.layers, store.getSnapshot());
-    renderer.render(resolved);
+      // 1. Render character layers with idle bob offset
+      const resolved = CharacterResolver.resolve(manifest.layers, store.getSnapshot(), idleBobOffset);
+      renderer.render(resolved);
 
-    // 2. Render selection overlay if a layer is selected
-    if (selectedLayerId) {
-      const selected = manifest.layers.find((l) => l.id === selectedLayerId);
-      if (selected && selected.visible) {
-        const dims = renderer.getAssetDimensions(selected.assetId) || { width: 300, height: 300 };
-        renderer.drawSelectionOverlay(selected, dims.width, dims.height);
+      // 2. Render selection overlay if a layer is selected
+      if (selectedLayerId) {
+        const selected = manifest.layers.find((l) => l.id === selectedLayerId);
+        if (selected && selected.visible) {
+          const dims = renderer.getAssetDimensions(selected.assetId) || { width: 300, height: 300 };
+          const resolvedLayer = resolved.activeLayers.find((al) => al.layer.id === selected.id);
+          const overlayLayer = resolvedLayer ? { ...selected, y: resolvedLayer.y } : selected;
+          renderer.drawSelectionOverlay(overlayLayer, dims.width, dims.height);
+        }
       }
-    }
-  }, [manifest.layers, store, selectedLayerId]);
+    },
+    [manifest.layers, store, selectedLayerId]
+  );
 
   // Initialize Canvas 2D Renderer & load assets
   useEffect(() => {
@@ -123,14 +129,16 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           console.error('[CanvasStage] Error loading asset:', err);
         }
       }
-      redraw();
+      redraw(0);
     };
 
     loadAssets();
 
     const unsubscribeStore = store.subscribe((params) => {
       setCurrentParams(params);
-      redraw();
+      if (!manifest.idleConfig?.enabled) {
+        redraw(0);
+      }
     });
 
     return () => {
@@ -140,10 +148,29 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     };
   }, [manifest, store, serverPort, onMissingAssetsChange, redraw]);
 
-  // Keep canvas repainted on selection change
+  // Dedicated single render loop for Idle Bob animation
   useEffect(() => {
-    redraw();
-  }, [selectedLayerId, manifest.layers, redraw]);
+    let animFrameId: number | null = null;
+    const isIdleActive = manifest.idleConfig?.enabled && (manifest.idleConfig?.amplitude ?? 0) > 0;
+
+    if (isIdleActive) {
+      const loop = (timeMs: number) => {
+        const isIdle = !store.getSnapshot().voiceActivity;
+        const offset = IdleBobEngine.calculateOffset(timeMs, manifest.idleConfig, isIdle);
+        redraw(offset);
+        animFrameId = requestAnimationFrame(loop);
+      };
+      animFrameId = requestAnimationFrame(loop);
+    } else {
+      redraw(0);
+    }
+
+    return () => {
+      if (animFrameId !== null) {
+        cancelAnimationFrame(animFrameId);
+      }
+    };
+  }, [manifest.idleConfig, store, redraw]);
 
   // Handle Pan & Zoom Transformations applied to Canvas wrapper
   const transformStyle: React.CSSProperties = {

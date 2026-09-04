@@ -123,6 +123,17 @@ export const DEFAULT_PROJECT_MANIFEST: Readonly<ProjectManifest> = {
       zIndex: 21,
     },
   ],
+  idleConfig: {
+    enabled: true,
+    amplitude: 8,
+    speed: 1.5,
+  },
+  blinkConfig: {
+    enabled: true,
+    minIntervalMs: 3000,
+    maxIntervalMs: 6000,
+    durationMs: 150,
+  },
   audioConfig: {
     threshold: 0.15,
     sensitivity: 2.0,

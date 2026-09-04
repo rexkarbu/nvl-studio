@@ -5,7 +5,7 @@ import { BlinkScheduler } from './core/animation/BlinkScheduler';
 import { AudioVAD } from './core/audio/AudioVAD';
 import { LiveBroadcaster } from './core/sync/LiveBroadcaster';
 import { DEFAULT_PROJECT_MANIFEST } from './core/project/defaultProject';
-import { CharacterLayer, ProjectManifest } from './core/project/types';
+import { CharacterLayer, ProjectManifest, IdleConfig, BlinkSettings } from './core/project/types';
 
 import { TopMenuBar } from './modules/workspace/TopMenuBar';
 import { LayerPanel } from './modules/workspace/LayerPanel';
@@ -356,6 +356,48 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleUpdateIdleConfig = useCallback(
+    (idleConfig: IdleConfig) => {
+      setManifest((prev) => ({
+        ...prev,
+        idleConfig,
+        metadata: { ...prev.metadata, updatedAt: new Date().toISOString() },
+      }));
+      markDirty();
+    },
+    [markDirty]
+  );
+
+  const handleUpdateBlinkConfig = useCallback(
+    (blinkConfig: BlinkSettings) => {
+      setManifest((prev) => ({
+        ...prev,
+        blinkConfig,
+        metadata: { ...prev.metadata, updatedAt: new Date().toISOString() },
+      }));
+      blinkRef.current.updateConfig({
+        minIntervalMs: blinkConfig.minIntervalMs,
+        maxIntervalMs: blinkConfig.maxIntervalMs,
+        blinkDurationMs: blinkConfig.durationMs,
+      });
+      markDirty();
+    },
+    [markDirty]
+  );
+
+  const handleUpdateAudioConfig = useCallback(
+    (audioConfig: ProjectManifest['audioConfig']) => {
+      setManifest((prev) => ({
+        ...prev,
+        audioConfig,
+        metadata: { ...prev.metadata, updatedAt: new Date().toISOString() },
+      }));
+      vadRef.current.updateConfig(audioConfig);
+      markDirty();
+    },
+    [markDirty]
+  );
+
   const selectedLayer = manifest.layers.find((l) => l.id === selectedLayerId) || null;
   const roleValidation = validateRoleMapping(manifest.layers);
 
@@ -470,6 +512,9 @@ export const App: React.FC = () => {
               audioVAD={vadRef.current}
               manifest={manifest}
               onUpdateLayers={handleReorderLayers}
+              onUpdateIdleConfig={handleUpdateIdleConfig}
+              onUpdateBlinkConfig={handleUpdateBlinkConfig}
+              onUpdateAudioConfig={handleUpdateAudioConfig}
             />
           )}
         </aside>

@@ -53,4 +53,37 @@ describe('BlinkScheduler', () => {
     expect(scheduler.getIsRunning()).toBe(false);
     expect(store.getSnapshot().blink).toBe(false);
   });
+
+  it('exposes getConfig and immediately reschedules when updateConfig is called while running', () => {
+    const customScheduler = new BlinkScheduler(store, {
+      minIntervalMs: 10000,
+      maxIntervalMs: 20000,
+      blinkDurationMs: 200,
+    });
+
+    expect(customScheduler.getConfig()).toEqual({
+      minIntervalMs: 10000,
+      maxIntervalMs: 20000,
+      blinkDurationMs: 200,
+    });
+
+    customScheduler.start();
+    // Advance 500ms (far before 10000ms)
+    vi.advanceTimersByTime(500);
+    expect(store.getSnapshot().blink).toBe(false);
+
+    // Update config to short interval (300-400ms)
+    customScheduler.updateConfig({
+      minIntervalMs: 300,
+      maxIntervalMs: 400,
+    });
+
+    expect(customScheduler.getConfig().minIntervalMs).toBe(300);
+
+    // Advance 400ms - with immediate reschedule, the blink triggers now!
+    vi.advanceTimersByTime(400);
+    expect(store.getSnapshot().blink).toBe(true);
+
+    customScheduler.stop();
+  });
 });

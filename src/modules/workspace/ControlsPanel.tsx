@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ParameterStore } from '../../core/parameters/ParameterStore';
 import { TalkSimulator } from '../../core/audio/TalkSimulator';
 import { BlinkScheduler } from '../../core/animation/BlinkScheduler';
 import { AudioVAD } from '../../core/audio/AudioVAD';
-import { CharacterLayer, ProjectManifest, SemanticLayerRole } from '../../core/project/types';
+import { CharacterLayer, ProjectManifest, SemanticLayerRole, IdleConfig, BlinkSettings } from '../../core/project/types';
 import { validateRoleMapping } from '../../core/project/roleAssignment';
+import { AnimatorConfigPanel } from './AnimatorConfigPanel';
+import { AudioMeter } from './AudioMeter';
 
 interface ControlsPanelProps {
   store: ParameterStore;
@@ -13,6 +15,9 @@ interface ControlsPanelProps {
   audioVAD: AudioVAD;
   manifest?: ProjectManifest;
   onUpdateLayers?: (layers: CharacterLayer[]) => void;
+  onUpdateIdleConfig?: (idleConfig: IdleConfig) => void;
+  onUpdateBlinkConfig?: (blinkConfig: BlinkSettings) => void;
+  onUpdateAudioConfig?: (audioConfig: ProjectManifest['audioConfig']) => void;
 }
 
 export const ControlsPanel: React.FC<ControlsPanelProps> = ({
@@ -22,18 +27,19 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
   audioVAD,
   manifest,
   onUpdateLayers,
+  onUpdateIdleConfig,
+  onUpdateBlinkConfig,
+  onUpdateAudioConfig,
 }) => {
+  const [panelTab, setPanelTab] = useState<'animator' | 'quick'>('animator');
   const [selectedLayerId, setSelectedLayerId] = useState<string>('layer-mouth-closed');
   const [isTalking, setIsTalking] = useState<boolean>(false);
   const [isAutoBlink, setIsAutoBlink] = useState<boolean>(true);
   const [isMicActive, setIsMicActive] = useState<boolean>(false);
-  const [micLevel, setMicLevel] = useState<number>(0);
   const [threshold, setThreshold] = useState<number>(audioVAD.getConfig().threshold);
   const [sensitivity, setSensitivity] = useState<number>(audioVAD.getConfig().sensitivity);
   const [releaseDelay, setReleaseDelay] = useState<number>(audioVAD.getConfig().releaseDelayMs);
   const [micError, setMicError] = useState<string | null>(null);
-
-  const meterAnimRef = useRef<number | null>(null);
 
   // Sync state with store
   useEffect(() => {
@@ -47,27 +53,8 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
     return () => {
       unsubscribe();
       blinkScheduler.stop();
-      if (meterAnimRef.current) cancelAnimationFrame(meterAnimRef.current);
     };
   }, [store, blinkScheduler]);
-
-  // Audio meter polling when mic is active
-  useEffect(() => {
-    if (isMicActive) {
-      const updateMeter = () => {
-        setMicLevel(audioVAD.getCurrentLevel());
-        meterAnimRef.current = requestAnimationFrame(updateMeter);
-      };
-      meterAnimRef.current = requestAnimationFrame(updateMeter);
-    } else {
-      if (meterAnimRef.current) cancelAnimationFrame(meterAnimRef.current);
-      setMicLevel(0);
-    }
-
-    return () => {
-      if (meterAnimRef.current) cancelAnimationFrame(meterAnimRef.current);
-    };
-  }, [isMicActive, audioVAD]);
 
   const handleToggleSimulator = () => {
     if (isMicActive) {
@@ -156,260 +143,280 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
 
   const roleValidation = manifest ? validateRoleMapping(manifest.layers) : null;
 
+  const handleUpdateIdle = onUpdateIdleConfig || (() => {});
+  const handleUpdateBlink = onUpdateBlinkConfig || (() => {});
+  const handleUpdateAudio = onUpdateAudioConfig || (() => {});
+
   return (
     <section className="controls-panel">
-      {/* 0. Live Role Mapping Status */}
-      {roleValidation && (
-        <div className="control-card role-status-card">
-          <div className="card-header">
-            <span className="card-title">Live Role Status</span>
-            <span
-              className={`badge-tag ${roleValidation.isValid ? 'badge-tag-success' : 'badge-tag-warning'}`}
-              style={{
-                background: roleValidation.isValid ? 'rgba(44, 182, 125, 0.15)' : 'rgba(255, 137, 6, 0.15)',
-                color: roleValidation.isValid ? '#2cb67d' : '#ff8906',
-                borderColor: roleValidation.isValid ? 'rgba(44, 182, 125, 0.35)' : 'rgba(255, 137, 6, 0.35)',
-              }}
-            >
-              {roleValidation.isValid ? '✓ Rigging Complete' : `⚠️ ${roleValidation.missingRoles.length} Missing`}
-            </span>
-          </div>
-
-          <div className="role-status-grid">
-            {[
-              { role: 'body', label: 'Body' },
-              { role: 'eye_open', label: 'Eye Open' },
-              { role: 'eye_closed', label: 'Eye Closed' },
-              { role: 'mouth_closed', label: 'Mouth Closed' },
-              { role: 'mouth_open', label: 'Mouth Open' },
-            ].map(({ role, label }) => {
-              const assignedLayer = roleValidation.mappedRoles[role as SemanticLayerRole];
-              return (
-                <div key={role} className="role-status-row">
-                  <span className="role-status-dot">{assignedLayer ? '🟢' : '🔴'}</span>
-                  <span className="role-status-label">{label}:</span>
-                  <span
-                    className={`role-status-layer-name ${assignedLayer ? 'assigned' : 'unassigned'}`}
-                    title={assignedLayer || 'No layer assigned'}
-                  >
-                    {assignedLayer || 'Missing'}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* 1. Talk Simulator */}
-      <div className="control-card">
-        <div className="card-header">
-          <span className="card-title">Talk Simulator</span>
-          <span className="card-sub">Manual Testing</span>
-        </div>
-        <div className="card-content">
-          <button
-            className={`action-btn-large ${isTalking ? 'talking-active' : ''}`}
-            onClick={handleToggleSimulator}
-            title="Toggle mouth open/close"
-          >
-            <span className="btn-icon">{isTalking ? '🗣️' : '🤐'}</span>
-            <span>{isTalking ? 'Stop Talking' : 'Simulate Talk'}</span>
-          </button>
-          <p className="card-hint">
-            Uji respons avatar secara instan tanpa perlu berbicara di mic.
-          </p>
-        </div>
+      {/* Controls / Animator Sub-tabs */}
+      <div className="sidebar-tab-bar" style={{ marginBottom: '12px' }}>
+        <button
+          className={`sidebar-tab-btn ${panelTab === 'animator' ? 'active' : ''}`}
+          onClick={() => setPanelTab('animator')}
+        >
+          ⚙️ Animator
+        </button>
+        <button
+          className={`sidebar-tab-btn ${panelTab === 'quick' ? 'active' : ''}`}
+          onClick={() => setPanelTab('quick')}
+        >
+          🎮 Simulator
+        </button>
       </div>
 
-      {/* 2. Blink Controller */}
-      <div className="control-card">
-        <div className="card-header">
-          <span className="card-title">Blink Controller</span>
-          <span className="card-sub">Independent State</span>
-        </div>
-        <div className="card-content row-actions">
-          <button
-            className={`action-btn ${isAutoBlink ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={handleToggleAutoBlink}
-          >
-            Auto-Blink: {isAutoBlink ? 'ON' : 'OFF'}
-          </button>
-          <button className="action-btn btn-outline" onClick={handleManualBlink}>
-            Trigger Blink 👁️
-          </button>
-        </div>
-      </div>
+      {panelTab === 'animator' && manifest ? (
+        <AnimatorConfigPanel
+          store={store}
+          blinkScheduler={blinkScheduler}
+          audioVAD={audioVAD}
+          manifest={manifest}
+          onUpdateIdleConfig={handleUpdateIdle}
+          onUpdateBlinkConfig={handleUpdateBlink}
+          onUpdateAudioConfig={handleUpdateAudio}
+        />
+      ) : (
+        <>
+          {/* 0. Live Role Mapping Status */}
+          {roleValidation && (
+            <div className="control-card role-status-card">
+              <div className="card-header">
+                <span className="card-title">Live Role Status</span>
+                <span
+                  className={`badge-tag ${roleValidation.isValid ? 'badge-tag-success' : 'badge-tag-warning'}`}
+                  style={{
+                    background: roleValidation.isValid ? 'rgba(44, 182, 125, 0.15)' : 'rgba(255, 137, 6, 0.15)',
+                    color: roleValidation.isValid ? '#2cb67d' : '#ff8906',
+                    borderColor: roleValidation.isValid ? 'rgba(44, 182, 125, 0.35)' : 'rgba(255, 137, 6, 0.35)',
+                  }}
+                >
+                  {roleValidation.isValid ? '✓ Rigging Complete' : `⚠️ ${roleValidation.missingRoles.length} Missing`}
+                </span>
+              </div>
 
-      {/* 3. Audio & Microphone VAD */}
-      <div className="control-card">
-        <div className="card-header">
-          <span className="card-title">Microphone VAD</span>
-          <span className="card-sub">Voice Detection</span>
-        </div>
-        <div className="card-content">
-          <button
-            className={`action-btn-large ${isMicActive ? 'mic-active' : ''}`}
-            onClick={handleToggleMic}
-          >
-            <span className="btn-icon">{isMicActive ? '🎙️' : '🎤'}</span>
-            <span>{isMicActive ? 'Mic Active (Listening)' : 'Start Microphone'}</span>
-          </button>
-
-          {micError && <div className="error-banner">{micError}</div>}
-
-          {/* Audio Meter */}
-          <div className="audio-meter-wrapper">
-            <div className="meter-labels">
-              <span>Input Level</span>
-              <span style={{ fontWeight: micLevel >= threshold ? 'bold' : 'normal', color: micLevel >= threshold ? '#ff5470' : 'inherit' }}>
-                {Math.round(micLevel * 100)}% {micLevel >= threshold ? '(VOICE DETECTED)' : ''}
-              </span>
+              <div className="role-status-grid">
+                {[
+                  { role: 'body', label: 'Body' },
+                  { role: 'eye_open', label: 'Eye Open' },
+                  { role: 'eye_closed', label: 'Eye Closed' },
+                  { role: 'mouth_closed', label: 'Mouth Closed' },
+                  { role: 'mouth_open', label: 'Mouth Open' },
+                ].map(({ role, label }) => {
+                  const assignedLayer = roleValidation.mappedRoles[role as SemanticLayerRole];
+                  return (
+                    <div key={role} className="role-status-row">
+                      <span className="role-status-dot">{assignedLayer ? '🟢' : '🔴'}</span>
+                      <span className="role-status-label">{label}:</span>
+                      <span
+                        className={`role-status-layer-name ${assignedLayer ? 'assigned' : 'unassigned'}`}
+                        title={assignedLayer || 'No layer assigned'}
+                      >
+                        {assignedLayer || 'Missing'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="audio-meter-track">
-              <div
-                className={`audio-meter-fill ${micLevel >= threshold ? 'active' : ''}`}
-                style={{ width: `${Math.min(100, micLevel * 100)}%` }}
-              />
-              <div
-                className="meter-threshold-marker"
-                style={{ left: `${threshold * 100}%` }}
-                title={`Activation Threshold: ${Math.round(threshold * 100)}%`}
-              />
+          )}
+
+          {/* 1. Talk Simulator */}
+          <div className="control-card">
+            <div className="card-header">
+              <span className="card-title">Talk Simulator</span>
+              <span className="card-sub">Manual Testing</span>
             </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-            <button
-              className="action-btn btn-outline"
-              style={{ flex: 1, fontSize: '11px', padding: '6px 8px' }}
-              onClick={handleAutoCalibrate}
-              disabled={isCalibrating}
-            >
-              {isCalibrating ? 'Calibrating (be silent)...' : '⚡ Auto Calibrate Noise'}
-            </button>
-          </div>
-
-          {/* Sliders */}
-          <div className="slider-group">
-            <div className="slider-row">
-              <label>Threshold ({Math.round(threshold * 100)}%) — sensitivity trigger</label>
-              <input
-                type="range"
-                min="0.01"
-                max="0.40"
-                step="0.01"
-                value={threshold}
-                onChange={handleThresholdChange}
-              />
-            </div>
-
-            <div className="slider-row">
-              <label>Mic Sensitivity ({sensitivity.toFixed(1)}x) — boost quiet mic</label>
-              <input
-                type="range"
-                min="1.0"
-                max="10.0"
-                step="0.5"
-                value={sensitivity}
-                onChange={handleSensitivityChange}
-              />
-            </div>
-
-            <div className="slider-row">
-              <label>Release Delay ({releaseDelay}ms) — mouth hold time</label>
-              <input
-                type="range"
-                min="50"
-                max="500"
-                step="25"
-                value={releaseDelay}
-                onChange={handleReleaseDelayChange}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 4. Layer Position (Manual Verification / Persistence Test) */}
-      {manifest && onUpdateLayers && (
-        <div className="control-card">
-          <div className="card-header">
-            <span className="card-title">Layer Position</span>
-            <span className="card-sub">Persistence Test</span>
-          </div>
-          <div className="card-content">
-            <div className="slider-row">
-              <label>Select Layer</label>
-              <select
-                style={{
-                  background: '#1a1926',
-                  color: '#fffffe',
-                  border: '1px solid #2e2c40',
-                  borderRadius: '6px',
-                  padding: '6px 8px',
-                  width: '100%',
-                  marginTop: '4px',
-                }}
-                value={selectedLayerId}
-                onChange={(e) => setSelectedLayerId(e.target.value)}
+            <div className="card-content">
+              <button
+                className={`action-btn-large ${isTalking ? 'talking-active' : ''}`}
+                onClick={handleToggleSimulator}
+                title="Toggle mouth open/close"
               >
-                {manifest.layers.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </select>
+                <span className="btn-icon">{isTalking ? '🗣️' : '🤐'}</span>
+                <span>{isTalking ? 'Stop Talking' : 'Simulate Talk'}</span>
+              </button>
+              <p className="card-hint">
+                Uji respons avatar secara instan tanpa perlu berbicara di mic.
+              </p>
             </div>
-
-            {(() => {
-              const selectedLayer = manifest.layers.find((l) => l.id === selectedLayerId);
-              if (!selectedLayer) return null;
-              return (
-                <div className="slider-group" style={{ marginTop: '8px' }}>
-                  <div className="slider-row">
-                    <label>X Position ({selectedLayer.x}px)</label>
-                    <input
-                      type="range"
-                      min={-300}
-                      max={300}
-                      step={5}
-                      value={selectedLayer.x}
-                      onChange={(e) => {
-                        const newX = Number(e.target.value);
-                        const updated = manifest.layers.map((l) =>
-                          l.id === selectedLayerId
-                            ? { ...l, x: newX }
-                            : l
-                        );
-                        onUpdateLayers(updated);
-                      }}
-                    />
-                  </div>
-                  <div className="slider-row">
-                    <label>Y Position ({selectedLayer.y}px)</label>
-                    <input
-                      type="range"
-                      min={-300}
-                      max={300}
-                      step={5}
-                      value={selectedLayer.y}
-                      onChange={(e) => {
-                        const newY = Number(e.target.value);
-                        const updated = manifest.layers.map((l) =>
-                          l.id === selectedLayerId
-                            ? { ...l, y: newY }
-                            : l
-                        );
-                        onUpdateLayers(updated);
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })()}
           </div>
-        </div>
+
+          {/* 2. Blink Controller */}
+          <div className="control-card">
+            <div className="card-header">
+              <span className="card-title">Blink Controller</span>
+              <span className="card-sub">Independent State</span>
+            </div>
+            <div className="card-content row-actions">
+              <button
+                className={`action-btn ${isAutoBlink ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={handleToggleAutoBlink}
+              >
+                Auto-Blink: {isAutoBlink ? 'ON' : 'OFF'}
+              </button>
+              <button className="action-btn btn-outline" onClick={handleManualBlink}>
+                Trigger Blink 👁️
+              </button>
+            </div>
+          </div>
+
+          {/* 3. Audio & Microphone VAD */}
+          <div className="control-card">
+            <div className="card-header">
+              <span className="card-title">Microphone VAD</span>
+              <span className="card-sub">Voice Detection</span>
+            </div>
+            <div className="card-content">
+              <button
+                className={`action-btn-large ${isMicActive ? 'mic-active' : ''}`}
+                onClick={handleToggleMic}
+              >
+                <span className="btn-icon">{isMicActive ? '🎙️' : '🎤'}</span>
+                <span>{isMicActive ? 'Mic Active (Listening)' : 'Start Microphone'}</span>
+              </button>
+
+              {micError && <div className="error-banner">{micError}</div>}
+
+              {/* Real-time AudioMeter Component */}
+              <AudioMeter
+                store={store}
+                threshold={threshold}
+                isListening={isMicActive}
+              />
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                <button
+                  className="action-btn btn-outline"
+                  style={{ flex: 1, fontSize: '11px', padding: '6px 8px' }}
+                  onClick={handleAutoCalibrate}
+                  disabled={isCalibrating}
+                >
+                  {isCalibrating ? 'Calibrating (be silent)...' : '⚡ Auto Calibrate Noise'}
+                </button>
+              </div>
+
+              {/* Sliders */}
+              <div className="slider-group">
+                <div className="slider-row">
+                  <label>Threshold ({Math.round(threshold * 100)}%) — sensitivity trigger</label>
+                  <input
+                    type="range"
+                    min="0.01"
+                    max="0.40"
+                    step="0.01"
+                    value={threshold}
+                    onChange={handleThresholdChange}
+                  />
+                </div>
+
+                <div className="slider-row">
+                  <label>Mic Sensitivity ({sensitivity.toFixed(1)}x) — boost quiet mic</label>
+                  <input
+                    type="range"
+                    min="1.0"
+                    max="10.0"
+                    step="0.5"
+                    value={sensitivity}
+                    onChange={handleSensitivityChange}
+                  />
+                </div>
+
+                <div className="slider-row">
+                  <label>Release Delay ({releaseDelay}ms) — mouth hold time</label>
+                  <input
+                    type="range"
+                    min="50"
+                    max="500"
+                    step="25"
+                    value={releaseDelay}
+                    onChange={handleReleaseDelayChange}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Layer Position (Manual Verification / Persistence Test) */}
+          {manifest && onUpdateLayers && (
+            <div className="control-card">
+              <div className="card-header">
+                <span className="card-title">Layer Position</span>
+                <span className="card-sub">Persistence Test</span>
+              </div>
+              <div className="card-content">
+                <div className="slider-row">
+                  <label>Select Layer</label>
+                  <select
+                    style={{
+                      background: '#1a1926',
+                      color: '#fffffe',
+                      border: '1px solid #2e2c40',
+                      borderRadius: '6px',
+                      padding: '6px 8px',
+                      width: '100%',
+                      marginTop: '4px',
+                    }}
+                    value={selectedLayerId}
+                    onChange={(e) => setSelectedLayerId(e.target.value)}
+                  >
+                    {manifest.layers.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {(() => {
+                  const selectedLayer = manifest.layers.find((l) => l.id === selectedLayerId);
+                  if (!selectedLayer) return null;
+                  return (
+                    <div className="slider-group" style={{ marginTop: '8px' }}>
+                      <div className="slider-row">
+                        <label>X Position ({selectedLayer.x}px)</label>
+                        <input
+                          type="range"
+                          min={-300}
+                          max={300}
+                          step={5}
+                          value={selectedLayer.x}
+                          onChange={(e) => {
+                            const newX = Number(e.target.value);
+                            const updated = manifest.layers.map((l) =>
+                              l.id === selectedLayerId
+                                ? { ...l, x: newX }
+                                : l
+                            );
+                            onUpdateLayers(updated);
+                          }}
+                        />
+                      </div>
+                      <div className="slider-row">
+                        <label>Y Position ({selectedLayer.y}px)</label>
+                        <input
+                          type="range"
+                          min={-300}
+                          max={300}
+                          step={5}
+                          value={selectedLayer.y}
+                          onChange={(e) => {
+                            const newY = Number(e.target.value);
+                            const updated = manifest.layers.map((l) =>
+                              l.id === selectedLayerId
+                                ? { ...l, y: newY }
+                                : l
+                            );
+                            onUpdateLayers(updated);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </section>
   );

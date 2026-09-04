@@ -1239,3 +1239,28 @@ body {
   font-style: italic;
 }
 
+/* ==========================================================================
+   Animator Configuration Panel (STEP 10)
+   ========================================================================== */
+.animator-config-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.device-select {
+  background: var(--bg-surface-elevated, #1a1926);
+  color: var(--text-main, #fffffe);
+  border: 1px solid var(--border-color, #2e2c40);
+  border-radius: var(--radius-sm, 6px);
+  padding: 6px 8px;
+  font-size: 12px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.device-select:focus {
+  border-color: var(--accent-primary, #7f5af0);
+}
+

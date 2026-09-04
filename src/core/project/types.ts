@@ -32,6 +32,19 @@ export interface CharacterLayer {
   zIndex: number;
 }
 
+export interface IdleConfig {
+  enabled: boolean;
+  amplitude: number; // 0 - 50 px, default 8
+  speed: number;     // 0.1 - 5.0, default 1.5
+}
+
+export interface BlinkSettings {
+  enabled: boolean;
+  minIntervalMs: number; // e.g. 3000ms
+  maxIntervalMs: number; // e.g. 6000ms
+  durationMs: number;    // e.g. 150ms
+}
+
 export interface ProjectManifest {
   schemaVersion: 1;
   projectId: string;
@@ -48,6 +61,8 @@ export interface ProjectManifest {
   };
   assets: ProjectAssetEntry[];
   layers: CharacterLayer[];
+  idleConfig?: IdleConfig;
+  blinkConfig?: BlinkSettings;
   audioConfig: {
     threshold: number;      // 0.0 - 1.0 (default: 0.15)
     sensitivity: number;    // 1.0 - 5.0 (default: 2.0)

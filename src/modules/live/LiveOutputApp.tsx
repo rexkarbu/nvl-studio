@@ -6,6 +6,7 @@ import { CanvasAvatarRenderer } from '../../core/renderer/CanvasAvatarRenderer';
 import { DEFAULT_PROJECT_MANIFEST } from '../../core/project/defaultProject';
 import { ProjectManifest } from '../../core/project/types';
 import { AvatarParameters } from '../../core/parameters/types';
+import { IdleBobEngine } from '../../core/animation/IdleBobEngine';
 
 interface LiveOutputAppProps {
   projectId?: string;
@@ -15,6 +16,11 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({ projectId: propPro
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<CanvasAvatarRenderer | null>(null);
   const receiverRef = useRef<LiveReceiver | null>(null);
+  const latestParamsRef = useRef<AvatarParameters>({
+    voiceActivity: false,
+    voiceLevel: 0,
+    blink: false,
+  });
 
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
   const [lastSeq, setLastSeq] = useState<number>(0);
@@ -107,17 +113,40 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({ projectId: propPro
       setConnectionState(state);
     });
 
+    let animFrameId: number | null = null;
+    const isIdleActive = manifest.idleConfig?.enabled && (manifest.idleConfig?.amplitude ?? 0) > 0;
+
     receiver.onFrame((parameters: AvatarParameters, sequence: number) => {
       setLastSeq(sequence);
-      if (rendererRef.current) {
-        const resolved = CharacterResolver.resolve(manifest.layers, parameters);
+      latestParamsRef.current = parameters;
+
+      // If idle bob is disabled, re-render immediately upon receiving frame
+      if (!isIdleActive && rendererRef.current) {
+        const resolved = CharacterResolver.resolve(manifest.layers, parameters, 0);
         rendererRef.current.render(resolved);
       }
     });
 
+    if (isIdleActive) {
+      const loop = (timeMs: number) => {
+        if (rendererRef.current) {
+          const params = latestParamsRef.current;
+          const isIdle = !params.voiceActivity;
+          const offset = IdleBobEngine.calculateOffset(timeMs, manifest.idleConfig, isIdle);
+          const resolved = CharacterResolver.resolve(manifest.layers, params, offset);
+          rendererRef.current.render(resolved);
+        }
+        animFrameId = requestAnimationFrame(loop);
+      };
+      animFrameId = requestAnimationFrame(loop);
+    }
+
     receiver.connect();
 
     return () => {
+      if (animFrameId !== null) {
+        cancelAnimationFrame(animFrameId);
+      }
       receiver.disconnect();
       rendererRef.current = null;
     };

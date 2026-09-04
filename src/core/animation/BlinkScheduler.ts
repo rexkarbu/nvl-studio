@@ -55,6 +55,15 @@ export class BlinkScheduler {
 
   public updateConfig(newConfig: Partial<BlinkConfig>): void {
     this.config = { ...this.config, ...newConfig };
+    if (this.isRunning) {
+      this.clearTimers();
+      this.store.update({ blink: false });
+      this.scheduleNextBlink();
+    }
+  }
+
+  public getConfig(): Readonly<BlinkConfig> {
+    return { ...this.config };
   }
 
   public getIsRunning(): boolean {

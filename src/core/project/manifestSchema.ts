@@ -134,7 +134,39 @@ export function validateManifest(data: unknown): ValidationResult {
     }
   }
 
-  // 7. audioConfig
+  // 7. idleConfig (optional)
+  if (obj.idleConfig !== undefined) {
+    if (!obj.idleConfig || typeof obj.idleConfig !== 'object') {
+      return { valid: false, error: 'Invalid idleConfig object' };
+    }
+    if (typeof obj.idleConfig.enabled !== 'boolean') {
+      return { valid: false, error: 'idleConfig.enabled must be a boolean' };
+    }
+    if (typeof obj.idleConfig.amplitude !== 'number' || obj.idleConfig.amplitude < 0) {
+      return { valid: false, error: 'idleConfig.amplitude must be a non-negative number' };
+    }
+    if (typeof obj.idleConfig.speed !== 'number' || obj.idleConfig.speed <= 0) {
+      return { valid: false, error: 'idleConfig.speed must be a positive number' };
+    }
+  }
+
+  // 8. blinkConfig (optional)
+  if (obj.blinkConfig !== undefined) {
+    if (!obj.blinkConfig || typeof obj.blinkConfig !== 'object') {
+      return { valid: false, error: 'Invalid blinkConfig object' };
+    }
+    if (typeof obj.blinkConfig.enabled !== 'boolean') {
+      return { valid: false, error: 'blinkConfig.enabled must be a boolean' };
+    }
+    if (typeof obj.blinkConfig.minIntervalMs !== 'number' || typeof obj.blinkConfig.maxIntervalMs !== 'number') {
+      return { valid: false, error: 'blinkConfig.minIntervalMs and maxIntervalMs must be numbers' };
+    }
+    if (typeof obj.blinkConfig.durationMs !== 'number' || obj.blinkConfig.durationMs <= 0) {
+      return { valid: false, error: 'blinkConfig.durationMs must be a positive number' };
+    }
+  }
+
+  // 9. audioConfig
   if (!obj.audioConfig || typeof obj.audioConfig !== 'object') {
     return { valid: false, error: 'Missing or invalid audioConfig object' };
   }
@@ -142,7 +174,7 @@ export function validateManifest(data: unknown): ValidationResult {
     return { valid: false, error: 'audioConfig.threshold and sensitivity must be numbers' };
   }
 
-  // 8. outputConfig
+  // 10. outputConfig
   if (!obj.outputConfig || typeof obj.outputConfig !== 'object') {
     return { valid: false, error: 'Missing or invalid outputConfig object' };
   }

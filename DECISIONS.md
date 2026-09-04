@@ -116,4 +116,31 @@ Step 9 memperkenalkan Semantic Layer Assignment untuk memetakan tumpukan layer v
 4. **Decoupled Resolver**:
    - `CharacterResolver.ts` tidak dimodifikasi karena sejak awal telah didesain mengevaluasi `layer.role` secara murni dan deterministik.
 
+---
+
+## ADR 007: Animator Configuration, Render Loop Deduplication & Deterministic Idle Bobbing
+
+### Status
+Accepted
+
+### Konteks
+Step 10 memperkenalkan konfigurasi animator (idle bobbing avatar, auto-blink tuning, mikrofon VAD, dan auto-kalibrasi kebisingan ambient).
+
+### Keputusan Arsitektur
+1. **Sinusoidal Idle Bob Engine (`IdleBobEngine`)**:
+   - Menghitung offset vertikal Y secara deterministik menggunakan formula: `Math.sin(timeSeconds * speed * Math.PI * 2) * amplitude`.
+   - Hanya diaplikasikan pada layer ber-role `body` saat avatar hening (`!parameters.voiceActivity`).
+   - Gerakan bob otomatis jeda (pause) saat berbicara dan melanjutkan secara mulus saat hening kembali tanpa lompatan (glitch).
+2. **Render Loop Deduplication (Single rAF)**:
+   - Menghindari pembuatan multiple `requestAnimationFrame` render loops.
+   - Baik di `CanvasStage` (preview) maupun di `LiveOutputApp` (OBS Browser Source), idle bob dievaluasi dalam satu loop frame terpadu saat `idleConfig.enabled` aktif.
+   - Ketika idle bob dinonaktifkan, rendering beralih kembali ke event-driven (perubahan parameter via WebSocket atau ParameterStore).
+3. **90th Percentile Noise Calibration (`AudioCalibrator`)**:
+   - Mengabaikan lonjakan audio transien (batuk, decak lidah, klik mouse) dengan menghitung persentil ke-90 sampel ambient room selama 2 detik.
+   - Rekomendasi threshold: `noiseFloor + 30%` (atau margin kustom), dibatasi aman pada rentang `[0.02, 0.50]`.
+4. **Immediate Reschedule pada BlinkScheduler**:
+   - `BlinkScheduler.updateConfig()` secara instan membersihkan timer berjalan dan menjadwalkan siklus kedip baru dengan rentang interval terbaru tanpa menunggu timer lama selesai.
+5. **Backward Compatibility Manifest Schema**:
+   - Menambahkan field opsional `idleConfig?: IdleConfig` dan `blinkConfig?: BlinkSettings` pada `ProjectManifest`. Proyek lama tanpa kedua field ini tetap valid dan otomatis menggunakan nilai default.
+
 

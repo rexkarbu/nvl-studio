@@ -11,7 +11,8 @@ import { ResolvedLayer, ResolvedVisualState } from './types';
 export class CharacterResolver {
   public static resolve(
     layers: CharacterLayer[],
-    parameters: AvatarParameters
+    parameters: AvatarParameters,
+    idleBobOffset: number = 0
   ): ResolvedVisualState {
     const activeLayers: ResolvedLayer[] = [];
 
@@ -51,11 +52,16 @@ export class CharacterResolver {
       }
 
       if (shouldRender) {
+        // Idle bob applies to body layer during idle state (!parameters.voiceActivity)
+        const isBody = layer.role === 'body';
+        const applyBob = isBody && !parameters.voiceActivity && idleBobOffset !== 0;
+        const resolvedY = applyBob ? layer.y + idleBobOffset : layer.y;
+
         activeLayers.push({
           layer,
           assetId: layer.assetId,
           x: layer.x,
-          y: layer.y,
+          y: resolvedY,
           scaleX: layer.scaleX,
           scaleY: layer.scaleY,
           rotation: layer.rotation,
