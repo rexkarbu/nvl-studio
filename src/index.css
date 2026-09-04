@@ -1053,3 +1053,189 @@ body {
   gap: 8px;
   margin-top: 6px;
 }
+
+/* ==========================================================================
+   Character Creator: Semantic Role Selector & Badges (Step 9)
+   ========================================================================== */
+.role-selector-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.role-selector-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.role-select-dropdown {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.role-select-dropdown:focus {
+  border-color: var(--accent-primary);
+}
+
+.role-description-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.layer-role-chip {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Character Creator: Validation Banner (Step 9)
+   ========================================================================== */
+.validation-banner {
+  background: rgba(255, 137, 6, 0.08);
+  border: 1px solid rgba(255, 137, 6, 0.28);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.validation-banner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.validation-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.validation-icon {
+  font-size: 14px;
+}
+
+.validation-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ff8906;
+}
+
+.auto-assign-btn {
+  background: rgba(255, 137, 6, 0.15);
+  border: 1px solid rgba(255, 137, 6, 0.35);
+  color: #ff8906;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.auto-assign-btn:hover {
+  background: rgba(255, 137, 6, 0.25);
+  border-color: #ff8906;
+}
+
+.validation-warnings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-left: 4px;
+}
+
+.validation-warning-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+  color: #e0a36e;
+}
+
+.warning-bullet {
+  color: #ff8906;
+  font-weight: bold;
+}
+
+.warning-text {
+  line-height: 1.35;
+}
+
+/* ==========================================================================
+   Character Creator: ControlsPanel Live Role Status (Step 9)
+   ========================================================================== */
+.role-status-card {
+  border-left: 3px solid var(--accent-primary);
+}
+
+.role-status-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.role-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.role-status-dot {
+  font-size: 8px;
+  line-height: 1;
+}
+
+.role-status-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 90px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.role-status-layer-name {
+  flex: 1;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.role-status-layer-name.assigned {
+  color: #2cb67d;
+  font-weight: 600;
+}
+
+.role-status-layer-name.unassigned {
+  color: #ff5470;
+  font-style: italic;
+}
+

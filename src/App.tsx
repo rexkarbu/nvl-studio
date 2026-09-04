@@ -14,7 +14,9 @@ import { LayerInspector } from './modules/workspace/LayerInspector';
 import { ControlsPanel } from './modules/workspace/ControlsPanel';
 import { BroadcastPanel } from './modules/workspace/BroadcastPanel';
 import { LiveOutputApp } from './modules/live/LiveOutputApp';
+import { ValidationBanner } from './modules/workspace/ValidationBanner';
 import { useDirtyState } from './modules/workspace/useDirtyState';
+import { SemanticLayerRole } from './core/project/types';
 import {
   createDefaultLayer,
   renameLayer,
@@ -22,6 +24,12 @@ import {
   deleteLayer,
   updateTransform,
 } from './core/project/layerOperations';
+import {
+  assignRole,
+  validateRoleMapping,
+  autoAssignRoles,
+  ROLE_METADATA,
+} from './core/project/roleAssignment';
 
 export const App: React.FC = () => {
   // Check if current route is Live Output (path /live/* or hash #/live/*)
@@ -312,7 +320,44 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleAssignRole = (layerId: string, newRole: SemanticLayerRole) => {
+    const check = assignRole(manifest.layers, layerId, newRole, false);
+    if (check.hasConflict && check.conflictLayer) {
+      const roleDef = ROLE_METADATA[newRole];
+      const targetLayer = manifest.layers.find((l) => l.id === layerId);
+      const confirmMsg = `Role "${roleDef.label}" is already assigned to layer "${check.conflictLayer.name}". Reassign it to "${targetLayer?.name || 'this layer'}"?`;
+      if (window.confirm(confirmMsg)) {
+        const reassignRes = assignRole(manifest.layers, layerId, newRole, true);
+        setManifest((prev) => ({
+          ...prev,
+          layers: reassignRes.updatedLayers,
+        }));
+        markDirty();
+      }
+    } else {
+      setManifest((prev) => ({
+        ...prev,
+        layers: check.updatedLayers,
+      }));
+      markDirty();
+    }
+  };
+
+  const handleAutoAssignRoles = () => {
+    const result = autoAssignRoles(manifest.layers);
+    if (result.assignedCount > 0) {
+      setManifest((prev) => ({
+        ...prev,
+        layers: result.updatedLayers,
+      }));
+      markDirty();
+    } else {
+      alert('No matching layer names found for auto-assignment.');
+    }
+  };
+
   const selectedLayer = manifest.layers.find((l) => l.id === selectedLayerId) || null;
+  const roleValidation = validateRoleMapping(manifest.layers);
 
   // Keyboard shortcut Ctrl+S / Cmd+S
   useEffect(() => {
@@ -370,10 +415,15 @@ export const App: React.FC = () => {
           onToggleVisibility={handleToggleVisibility}
           onDeleteLayer={handleDeleteLayer}
           onImportPng={handleImportPng}
+          onAutoAssignRoles={handleAutoAssignRoles}
         />
 
         {/* Center Column: Interactive Canvas Stage & Broadcast Panel */}
         <div className="workspace-main-column">
+          <ValidationBanner
+            warnings={roleValidation.warnings}
+            onAutoAssign={handleAutoAssignRoles}
+          />
           <CanvasStage
             manifest={manifest}
             store={storeRef.current}
@@ -407,7 +457,9 @@ export const App: React.FC = () => {
           {activeSidebarTab === 'inspector' ? (
             <LayerInspector
               layer={selectedLayer}
+              allLayers={manifest.layers}
               onUpdateTransform={handleUpdateLayerTransform}
+              onAssignRole={handleAssignRole}
               onDeleteLayer={handleDeleteLayer}
             />
           ) : (

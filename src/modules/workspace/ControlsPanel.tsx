@@ -3,7 +3,8 @@ import { ParameterStore } from '../../core/parameters/ParameterStore';
 import { TalkSimulator } from '../../core/audio/TalkSimulator';
 import { BlinkScheduler } from '../../core/animation/BlinkScheduler';
 import { AudioVAD } from '../../core/audio/AudioVAD';
-import { CharacterLayer, ProjectManifest } from '../../core/project/types';
+import { CharacterLayer, ProjectManifest, SemanticLayerRole } from '../../core/project/types';
+import { validateRoleMapping } from '../../core/project/roleAssignment';
 
 interface ControlsPanelProps {
   store: ParameterStore;
@@ -153,8 +154,53 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
     }
   };
 
+  const roleValidation = manifest ? validateRoleMapping(manifest.layers) : null;
+
   return (
     <section className="controls-panel">
+      {/* 0. Live Role Mapping Status */}
+      {roleValidation && (
+        <div className="control-card role-status-card">
+          <div className="card-header">
+            <span className="card-title">Live Role Status</span>
+            <span
+              className={`badge-tag ${roleValidation.isValid ? 'badge-tag-success' : 'badge-tag-warning'}`}
+              style={{
+                background: roleValidation.isValid ? 'rgba(44, 182, 125, 0.15)' : 'rgba(255, 137, 6, 0.15)',
+                color: roleValidation.isValid ? '#2cb67d' : '#ff8906',
+                borderColor: roleValidation.isValid ? 'rgba(44, 182, 125, 0.35)' : 'rgba(255, 137, 6, 0.35)',
+              }}
+            >
+              {roleValidation.isValid ? '✓ Rigging Complete' : `⚠️ ${roleValidation.missingRoles.length} Missing`}
+            </span>
+          </div>
+
+          <div className="role-status-grid">
+            {[
+              { role: 'body', label: 'Body' },
+              { role: 'eye_open', label: 'Eye Open' },
+              { role: 'eye_closed', label: 'Eye Closed' },
+              { role: 'mouth_closed', label: 'Mouth Closed' },
+              { role: 'mouth_open', label: 'Mouth Open' },
+            ].map(({ role, label }) => {
+              const assignedLayer = roleValidation.mappedRoles[role as SemanticLayerRole];
+              return (
+                <div key={role} className="role-status-row">
+                  <span className="role-status-dot">{assignedLayer ? '🟢' : '🔴'}</span>
+                  <span className="role-status-label">{label}:</span>
+                  <span
+                    className={`role-status-layer-name ${assignedLayer ? 'assigned' : 'unassigned'}`}
+                    title={assignedLayer || 'No layer assigned'}
+                  >
+                    {assignedLayer || 'Missing'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 1. Talk Simulator */}
       <div className="control-card">
         <div className="card-header">

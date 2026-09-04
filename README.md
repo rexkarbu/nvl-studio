@@ -7,7 +7,7 @@
 ![Electron](https://img.shields.io/badge/Electron-34+-47848F?style=flat&logo=electron&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-6+-646CFF?style=flat&logo=vite&logoColor=white)
 ![OBS Studio](https://img.shields.io/badge/OBS_Studio-Compatible-302E31?style=flat&logo=obsstudio&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-66_Passed-brightgreen?style=flat&logo=vitest&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-77_Passed-brightgreen?style=flat&logo=vitest&logoColor=white)
 
 **An all-in-one desktop application for PNGtubers and streamers.**  
 Create, animate, and broadcast responsive 2D avatars directly to OBS Studio in real-time.
@@ -202,7 +202,13 @@ nvl/
   - Comprehensive Transform Inspector (position, aspect-locked scale, rotation slider, opacity)
   - Interactive Canvas Stage with direct selection, 8 scale handles + rotation stalk, mouse pan, zoom, and arrow nudges
   - Discord window occlusion background throttling mitigation (`backgroundThrottling: false`)
-- [ ] **Stage B: Semantic Roles & Rigging Rules (Step 9)**
+- [x] **Stage B: Semantic Roles & Rigging Rules (Step 9)**
+  - Dropdown semantic role selector (`body`, `eye_open`, `eye_closed`, `mouth_closed`, `mouth_open`, `accessory`, `custom`)
+  - Duplicate unique role prevention with confirmation reassign prompt
+  - Color-coded role badges in LayerPanel
+  - Non-blocking informative ValidationBanner for missing key roles
+  - Quick-action "Auto-Assign Roles" regex pattern matcher
+  - Live role binding checklist and indicators in ControlsPanel
 - [ ] **Stage B: Animator Loop & Parameter Binding (Step 10)**
 - [ ] **Stage C: Advanced Animator (Steps 11–14)**
   - Multi-frame frame-by-frame animation loops

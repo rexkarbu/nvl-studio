@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CharacterLayer } from '../../core/project/types';
 import { moveLayerUp, moveLayerDown } from '../../core/project/layerOperations';
+import { ROLE_METADATA } from '../../core/project/roleAssignment';
 
 interface LayerPanelProps {
   layers: CharacterLayer[];
@@ -11,6 +12,7 @@ interface LayerPanelProps {
   onToggleVisibility: (layerId: string) => void;
   onDeleteLayer: (layerId: string) => void;
   onImportPng: () => void;
+  onAutoAssignRoles?: () => void;
 }
 
 export const LayerPanel: React.FC<LayerPanelProps> = ({
@@ -22,6 +24,7 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({
   onToggleVisibility,
   onDeleteLayer,
   onImportPng,
+  onAutoAssignRoles,
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>('');
@@ -69,14 +72,26 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({
           <span className="badge-tag">{layers.length}</span>
         </div>
 
-        <button
-          className="action-btn btn-primary"
-          style={{ fontSize: '11px', padding: '5px 9px' }}
-          onClick={onImportPng}
-          title="Import external transparent PNG asset(s)"
-        >
-          <span>➕ Import PNG</span>
-        </button>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {onAutoAssignRoles && (
+            <button
+              className="action-btn btn-secondary"
+              style={{ fontSize: '11px', padding: '5px 8px' }}
+              onClick={onAutoAssignRoles}
+              title="Auto-detect and assign semantic roles based on layer names"
+            >
+              <span>⚡ Auto</span>
+            </button>
+          )}
+          <button
+            className="action-btn btn-primary"
+            style={{ fontSize: '11px', padding: '5px 9px' }}
+            onClick={onImportPng}
+            title="Import external transparent PNG asset(s)"
+          >
+            <span>➕ PNG</span>
+          </button>
+        </div>
       </div>
 
       <div className="layer-list-scrollable">
@@ -92,6 +107,7 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({
             const isSelected = layer.id === selectedLayerId;
             const isTop = index === 0;
             const isBottom = index === displayLayers.length - 1;
+            const roleDef = ROLE_METADATA[layer.role] || ROLE_METADATA.custom;
 
             return (
               <div
@@ -136,7 +152,17 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({
                       {layer.name}
                     </span>
                   )}
-                  <span className="layer-role-chip">{layer.role}</span>
+                  <span
+                    className={`layer-role-chip role-badge-${layer.role}`}
+                    style={{
+                      backgroundColor: roleDef.badgeColor,
+                      color: roleDef.badgeTextColor,
+                      borderColor: roleDef.badgeBorderColor,
+                    }}
+                    title={`Role: ${roleDef.label} — ${roleDef.description}`}
+                  >
+                    {roleDef.label}
+                  </span>
                 </div>
 
                 {/* Layer Actions: Move Up, Move Down, Delete */}

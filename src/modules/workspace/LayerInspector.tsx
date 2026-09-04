@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
-import { CharacterLayer } from '../../core/project/types';
+import { CharacterLayer, SemanticLayerRole } from '../../core/project/types';
+import { RoleSelector } from './RoleSelector';
 
 interface LayerInspectorProps {
   layer: CharacterLayer | null;
+  allLayers?: CharacterLayer[];
   onUpdateTransform: (layerId: string, updates: Partial<CharacterLayer>) => void;
+  onAssignRole?: (layerId: string, newRole: SemanticLayerRole) => void;
   onDeleteLayer: (layerId: string) => void;
 }
 
 export const LayerInspector: React.FC<LayerInspectorProps> = ({
   layer,
+  allLayers = [],
   onUpdateTransform,
+  onAssignRole,
   onDeleteLayer,
 }) => {
   const [lockAspect, setLockAspect] = useState<boolean>(true);
@@ -71,6 +76,23 @@ export const LayerInspector: React.FC<LayerInspectorProps> = ({
       </div>
 
       <div className="inspector-content">
+        {/* Semantic Role Assignment */}
+        <div className="inspector-section">
+          <span className="inspector-section-label">Semantic Animation Role</span>
+          <RoleSelector
+            currentRole={layer.role}
+            currentLayerId={layer.id}
+            allLayers={allLayers}
+            onRoleSelect={(newRole) => {
+              if (onAssignRole) {
+                onAssignRole(layer.id, newRole);
+              } else {
+                onUpdateTransform(layer.id, { role: newRole });
+              }
+            }}
+          />
+        </div>
+
         {/* Visibility */}
         <div className="inspector-row-checkbox">
           <label className="checkbox-container">

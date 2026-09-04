@@ -93,3 +93,27 @@ Step 8 memperkenalkan Character Creator Foundation: import multi-PNG, layer mana
 2. **Center Anchor Model `[-w/2, -h/2]` to `[w/2, h/2]`**: Koordinat `(layer.x, layer.y)` selalu merepresentasikan titik tengah layer. Hit-testing mentransformasikan cursor screen ke local center space dengan translasi `(-x, -y)`, rotasi balik `-rotation`, dan pembagian `(scaleX, scaleY)`.
 3. **Staging Directory untuk Proyek Untitled**: Asset PNG yang diimpor sebelum user menekan "Save As" disimpan di staging folder lokal (`temp/nvl_staging/assets`) dan otomatis disalin ke direktori proyek tujuan saat disimpan.
 
+---
+
+## ADR 006: Semantic Layer Assignment & Auto-Rigging Rules
+
+### Status
+Accepted
+
+### Konteks
+Step 9 memperkenalkan Semantic Layer Assignment untuk memetakan tumpukan layer visual ke parameter animasi live (berbicara dan berkedip).
+
+### Keputusan Arsitektur
+1. **Aturan Keunikan Role (Unique vs Non-Unique)**:
+   - 5 Role inti (`body`, `eye_open`, `eye_closed`, `mouth_closed`, `mouth_open`) bersifat unik (hanya boleh dimiliki oleh 1 layer).
+   - Menetapkan role unik yang sudah dipakai layer lain memicu dialog konfirmasi penugasan ulang (`confirm`). Jika disetujui, layer lama otomatis di-reset menjadi `custom`.
+   - Role `accessory` dan `custom` bersifat non-unik (dapat ditetapkan ke banyak layer sekaligus).
+2. **First-Match-Wins Auto-Assign Heuristics**:
+   - Deteksi otomatis regex nama file/layer menggunakan pola umum (`eye.*open`, `mouth.*close`, `body`, dsb.).
+   - Bila terdapat beberapa layer yang cocok dengan role unik yang sama, layer urutan pertama yang mendapatkan role tersebut untuk menjamin determinisme.
+3. **Non-Blocking Informative Validation**:
+   - Peringatan ketiadaan role inti ditampilkan melalui `ValidationBanner` dan `ControlsPanel` secara spesifik dan edukatif tanpa memblokir penyimpanan file (`project.nvl`).
+4. **Decoupled Resolver**:
+   - `CharacterResolver.ts` tidak dimodifikasi karena sejak awal telah didesain mengevaluasi `layer.role` secara murni dan deterministik.
+
+
