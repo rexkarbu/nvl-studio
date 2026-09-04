@@ -1,0 +1,71 @@
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent !important;
+  background-color: transparent !important;
+  overflow: hidden;
+  user-select: none;
+}
+
+.live-output-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent !important;
+  position: relative;
+}
+
+.live-output-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  background: transparent !important;
+}
+
+.live-status-pill {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: rgba(15, 14, 23, 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #a7a9be;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+
+.live-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #ff5470;
+}
+
+.live-status-dot.connected {
+  background-color: #2cb67d;
+  box-shadow: 0 0 8px rgba(44, 182, 125, 0.6);
+}
+
+.live-status-dot.reconnecting {
+  background-color: #ffbf00;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
+}

@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "projectId": "default-avatar",
+  "metadata": {
+    "name": "Sample Avatar (Chibi Cat)",
+    "createdAt": "2026-09-05T01:30:00.000Z",
+    "updatedAt": "2026-09-05T01:30:00.000Z",
+    "version": "1.0.0"
+  },
+  "canvas": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 60
+  },
+  "assets": [
+    {
+      "id": "asset-body",
+      "name": "Body",
+      "path": "assets/body.png",
+      "format": "png"
+    },
+    {
+      "id": "asset-eye-open",
+      "name": "Eye Open",
+      "path": "assets/eye-open.png",
+      "format": "png"
+    },
+    {
+      "id": "asset-eye-closed",
+      "name": "Eye Closed",
+      "path": "assets/eye-closed.png",
+      "format": "png"
+    },
+    {
+      "id": "asset-mouth-closed",
+      "name": "Mouth Closed",
+      "path": "assets/mouth-closed.png",
+      "format": "png"
+    },
+    {
+      "id": "asset-mouth-open",
+      "name": "Mouth Open",
+      "path": "assets/mouth-open.png",
+      "format": "png"
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer-body",
+      "name": "Body",
+      "type": "sprite",
+      "assetId": "asset-body",
+      "role": "body",
+      "x": 960,
+      "y": 540,
+      "scaleX": 1.4,
+      "scaleY": 1.4,
+      "rotation": 0,
+      "opacity": 1.0,
+      "visible": true,
+      "zIndex": 1
+    },
+    {
+      "id": "layer-eye-open",
+      "name": "Eye Open",
+      "type": "sprite",
+      "assetId": "asset-eye-open",
+      "role": "eye_open",
+      "x": 960,
+      "y": 540,
+      "scaleX": 1.4,
+      "scaleY": 1.4,
+      "rotation": 0,
+      "opacity": 1.0,
+      "visible": true,
+      "zIndex": 10
+    },
+    {
+      "id": "layer-eye-closed",
+      "name": "Eye Closed",
+      "type": "sprite",
+      "assetId": "asset-eye-closed",
+      "role": "eye_closed",
+      "x": 960,
+      "y": 540,
+      "scaleX": 1.4,
+      "scaleY": 1.4,
+      "rotation": 0,
+      "opacity": 1.0,
+      "visible": true,
+      "zIndex": 11
+    },
+    {
+      "id": "layer-mouth-closed",
+      "name": "Mouth Closed",
+      "type": "sprite",
+      "assetId": "asset-mouth-closed",
+      "role": "mouth_closed",
+      "x": 960,
+      "y": 540,
+      "scaleX": 1.4,
+      "scaleY": 1.4,
+      "rotation": 0,
+      "opacity": 1.0,
+      "visible": true,
+      "zIndex": 20
+    },
+    {
+      "id": "layer-mouth-open",
+      "name": "Mouth Open",
+      "type": "sprite",
+      "assetId": "asset-mouth-open",
+      "role": "mouth_open",
+      "x": 960,
+      "y": 540,
+      "scaleX": 1.4,
+      "scaleY": 1.4,
+      "rotation": 0,
+      "opacity": 1.0,
+      "visible": true,
+      "zIndex": 21
+    }
+  ],
+  "audioConfig": {
+    "threshold": 0.15,
+    "sensitivity": 2.0,
+    "releaseDelayMs": 150
+  },
+  "outputConfig": {
+    "preferredPort": 17777,
+    "transparent": true
+  }
+}
