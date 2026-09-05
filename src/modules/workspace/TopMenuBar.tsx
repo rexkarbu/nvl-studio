@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface TopMenuBarProps {
   projectName: string;
@@ -21,6 +21,21 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
   onSaveProject,
   onSaveProjectAs,
 }) => {
+  const [heapMb, setHeapMb] = useState<number | null>(null);
+
+  useEffect(() => {
+    const updateHeap = () => {
+      if (typeof window !== 'undefined' && (window.performance as any)?.memory?.usedJSHeapSize) {
+        const mb = Math.round((window.performance as any).memory.usedJSHeapSize / (1024 * 1024));
+        setHeapMb(mb);
+      }
+    };
+
+    updateHeap();
+    const timer = setInterval(updateHeap, 2500);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <header className="top-menu-bar">
       <div className="brand-group">
@@ -56,18 +71,31 @@ export const TopMenuBar: React.FC<TopMenuBarProps> = ({
         </button>
       </div>
 
-      <div
-        className="server-status-pill"
-        title={
-          serverPort
-            ? `Local Broadcast Server active on 127.0.0.1:${serverPort}. Connects directly to OBS Browser Source.`
-            : 'Starting embedded local WebSocket & HTTP server...'
-        }
-      >
-        <span className={`status-indicator-dot ${serverPort ? 'online' : 'offline'}`} />
-        <span className="status-text">
-          {serverPort ? `Local Server: 127.0.0.1:${serverPort}` : 'Server Starting...'}
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {heapMb !== null && (
+          <div
+            className="memory-monitor-pill"
+            title={`JavaScript Heap Usage: ${heapMb} MB. Monitored for long streaming sessions.`}
+            data-testid="memory-monitor-badge"
+          >
+            <span className="memory-icon">🧠</span>
+            <span className="memory-text">{heapMb} MB</span>
+          </div>
+        )}
+
+        <div
+          className="server-status-pill"
+          title={
+            serverPort
+              ? `Local Broadcast Server active on 127.0.0.1:${serverPort}. Connects directly to OBS Browser Source.`
+              : 'Starting embedded local WebSocket & HTTP server...'
+          }
+        >
+          <span className={`status-indicator-dot ${serverPort ? 'online' : 'offline'}`} />
+          <span className="status-text">
+            {serverPort ? `Local Server: 127.0.0.1:${serverPort}` : 'Server Starting...'}
+          </span>
+        </div>
       </div>
     </header>
   );

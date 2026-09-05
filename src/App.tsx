@@ -17,6 +17,7 @@ import { LiveOutputApp } from './modules/live/LiveOutputApp';
 import { ValidationBanner } from './modules/workspace/ValidationBanner';
 import { WelcomeScreen } from './modules/workspace/WelcomeScreen';
 import { useDirtyState } from './modules/workspace/useDirtyState';
+import { showMessageBox, showConfirmDialog } from './modules/workspace/dialogUtils';
 import { SemanticLayerRole } from './core/project/types';
 import {
   createDefaultLayer,
@@ -65,16 +66,8 @@ export const App: React.FC = () => {
 
   // Native message dialog helper
   const showMessage = useCallback(
-    async (title: string, message: string, type: 'info' | 'error' | 'warning' = 'info') => {
-      if ((window as any).nvlDesktop?.showMessageBox) {
-        await (window as any).nvlDesktop.showMessageBox({
-          type,
-          title,
-          message,
-        });
-      } else {
-        alert(`${title}\n\n${message}`);
-      }
+    async (title: string, message: string, type: 'info' | 'error' | 'warning' = 'info', detail?: string) => {
+      await showMessageBox(title, message, type, detail);
     },
     []
   );
@@ -172,7 +165,10 @@ export const App: React.FC = () => {
         return false; // Cancel
       }
     } else {
-      return confirm('You have unsaved changes. Do you want to proceed and discard them?');
+      return showConfirmDialog(
+        'Unsaved Changes',
+        'You have unsaved changes. Do you want to proceed and discard them?'
+      );
     }
   };
 
@@ -391,13 +387,14 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleAssignRole = (layerId: string, newRole: SemanticLayerRole) => {
+  const handleAssignRole = async (layerId: string, newRole: SemanticLayerRole) => {
     const check = assignRole(manifest.layers, layerId, newRole, false);
     if (check.hasConflict && check.conflictLayer) {
       const roleDef = ROLE_METADATA[newRole];
       const targetLayer = manifest.layers.find((l) => l.id === layerId);
       const confirmMsg = `Role "${roleDef.label}" is already assigned to layer "${check.conflictLayer.name}". Reassign it to "${targetLayer?.name || 'this layer'}"?`;
-      if (window.confirm(confirmMsg)) {
+      const confirmed = await showConfirmDialog('Reassign Semantic Role', confirmMsg);
+      if (confirmed) {
         const reassignRes = assignRole(manifest.layers, layerId, newRole, true);
         setManifest((prev) => ({
           ...prev,
@@ -414,7 +411,7 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleAutoAssignRoles = () => {
+  const handleAutoAssignRoles = async () => {
     const result = autoAssignRoles(manifest.layers);
     if (result.assignedCount > 0) {
       setManifest((prev) => ({
@@ -423,7 +420,12 @@ export const App: React.FC = () => {
       }));
       markDirty();
     } else {
-      alert('No matching layer names found for auto-assignment.');
+      await showMessageBox(
+        'Auto-Assign Roles',
+        'No matching layer names found for auto-assignment.',
+        'info',
+        'Ensure layer names contain hints like "body", "eye_open", "eye_closed", "mouth_open", or "mouth_closed".'
+      );
     }
   };
 

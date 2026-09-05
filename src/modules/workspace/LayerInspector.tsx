@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CharacterLayer, SemanticLayerRole } from '../../core/project/types';
 import { RoleSelector } from './RoleSelector';
+import { showConfirmDialog } from './dialogUtils';
 
 interface LayerInspectorProps {
   layer: CharacterLayer | null;
@@ -221,8 +222,13 @@ export const LayerInspector: React.FC<LayerInspectorProps> = ({
           <button
             className="action-btn btn-outline"
             style={{ color: '#ff5470', borderColor: '#ff5470' }}
-            onClick={() => {
-              if (confirm(`Delete layer "${layer.name}"?`)) {
+            onClick={async () => {
+              const confirmed = await showConfirmDialog(
+                'Delete Layer',
+                `Delete layer "${layer.name}"?`,
+                'This layer will be permanently removed from your avatar rig.'
+              );
+              if (confirmed) {
                 onDeleteLayer(layer.id);
               }
             }}

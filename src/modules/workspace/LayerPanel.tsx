@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CharacterLayer } from '../../core/project/types';
 import { moveLayerUp, moveLayerDown } from '../../core/project/layerOperations';
 import { ROLE_METADATA } from '../../core/project/roleAssignment';
+import { showConfirmDialog } from './dialogUtils';
 
 interface LayerPanelProps {
   layers: CharacterLayer[];
@@ -59,9 +60,14 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({
     onReorderLayers(updated);
   };
 
-  const handleDelete = (layer: CharacterLayer, e: React.MouseEvent) => {
+  const handleDelete = async (layer: CharacterLayer, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm(`Delete layer "${layer.name}"?`)) {
+    const confirmed = await showConfirmDialog(
+      'Delete Layer',
+      `Delete layer "${layer.name}"?`,
+      'This layer will be permanently removed from your avatar rig.'
+    );
+    if (confirmed) {
       onDeleteLayer(layer.id);
     }
   };

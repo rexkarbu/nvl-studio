@@ -11,6 +11,7 @@ import {
   screenToCanvas,
   zoomAroundScreenPoint,
 } from './canvasNavigation';
+import { showConfirmDialog } from './dialogUtils';
 import {
   findTopmostLayerAt,
   hitTestHandles,
@@ -222,9 +223,15 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           onUpdateLayer(selected.id, { y: nudged.y });
         } else if (e.key === 'Delete' || e.key === 'Backspace') {
           e.preventDefault();
-          if (confirm(`Delete selected layer "${selected.name}"?`)) {
-            onDeleteLayer(selected.id);
-          }
+          showConfirmDialog(
+            'Delete Layer',
+            `Delete selected layer "${selected.name}"?`,
+            'This action will remove the layer from your avatar rig.'
+          ).then((confirmed) => {
+            if (confirmed) {
+              onDeleteLayer(selected.id);
+            }
+          });
         }
       }
     };

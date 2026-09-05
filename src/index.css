@@ -118,6 +118,32 @@ body {
   border-color: rgba(255, 255, 255, 0.15);
 }
 
+.memory-monitor-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: default;
+  transition: all 0.15s ease;
+}
+
+.memory-monitor-pill:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--accent-primary);
+  color: var(--text-main);
+}
+
+.memory-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
 .server-status-pill {
   display: flex;
   align-items: center;
