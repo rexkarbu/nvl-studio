@@ -30,6 +30,16 @@ describe('ProjectService & Path Resolver (Desktop Persistence)', () => {
     expect(result.manifest.metadata.name).toBe('My Chibi Character');
     expect(result.manifest.schemaVersion).toBe(1);
     expect(result.manifest.layers[0].type).toBe('sprite');
+    // Verify all 7 assets (including 4 mouth frames) are registered
+    expect(result.manifest.assets.length).toBe(7);
+    const assetIds = result.manifest.assets.map((a) => a.id);
+    expect(assetIds).toContain('asset-mouth-closed');
+    expect(assetIds).toContain('asset-mouth-small');
+    expect(assetIds).toContain('asset-mouth-open');
+    expect(assetIds).toContain('asset-mouth-wide');
+    // Verify files copied to disk
+    expect(fs.existsSync(path.join(projectFolder, 'assets', 'mouth-small.png'))).toBe(true);
+    expect(fs.existsSync(path.join(projectFolder, 'assets', 'mouth-wide.png'))).toBe(true);
   });
 
   it('openProject loads valid project and rejects corrupted file with backup', async () => {

@@ -38,7 +38,9 @@ export const MouthMappingPanel: React.FC<MouthMappingPanelProps> = ({
   useEffect(() => {
     const unsub = store.subscribe((params) => {
       setLiveVoiceLevel(params.voiceLevel);
-      setLiveMouthShape(params.mouthShape || (params.voiceActivity ? 'open' : 'closed'));
+      const rawShape = params.mouthShape || (params.voiceActivity ? 'medium' : 'closed');
+      const normalizedShape = rawShape === 'open' ? 'medium' : rawShape;
+      setLiveMouthShape(normalizedShape);
       setLiveMouthOpen(params.mouthOpen ?? 0);
     });
     return unsub;

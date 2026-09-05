@@ -99,7 +99,12 @@ export function resolveActiveMouthRole(
   if (mouthConfig?.continuousMode && typeof parameters.mouthOpen === 'number') {
     const openValue = parameters.mouthOpen;
 
-    if (openValue <= 0.05 || !isTalking) {
+    // Use thresholds.closed when available for consistency with discrete mapping
+    const isBelowClosed = typeof parameters.voiceLevel === 'number' && mouthConfig?.thresholds
+      ? parameters.voiceLevel <= mouthConfig.thresholds.closed
+      : openValue <= 0.05;
+
+    if (openValue <= 0 || !isTalking || isBelowClosed) {
       return 'mouth_closed';
     }
 

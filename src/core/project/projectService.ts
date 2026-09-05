@@ -56,13 +56,10 @@ export class ProjectService {
         updatedAt: now,
         version: '1.0.0',
       },
-      assets: [
-        { id: 'asset-body', name: 'Body', path: 'assets/body.png', format: 'png' },
-        { id: 'asset-eye-open', name: 'Eye Open', path: 'assets/eye-open.png', format: 'png' },
-        { id: 'asset-eye-closed', name: 'Eye Closed', path: 'assets/eye-closed.png', format: 'png' },
-        { id: 'asset-mouth-closed', name: 'Mouth Closed', path: 'assets/mouth-closed.png', format: 'png' },
-        { id: 'asset-mouth-open', name: 'Mouth Open', path: 'assets/mouth-open.png', format: 'png' },
-      ],
+      assets: DEFAULT_PROJECT_MANIFEST.assets.map((asset) => ({
+        ...asset,
+        path: `assets/${path.basename(asset.path)}`,
+      })),
       outputConfig: {
         preferredPort: 17777,
         transparent: true,
