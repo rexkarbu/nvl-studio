@@ -12,6 +12,7 @@ import {
   zoomAroundScreenPoint,
 } from './canvasNavigation';
 import { showConfirmDialog } from './dialogUtils';
+import { resolveAssetUrl } from '../../core/project/pathResolver';
 import {
   findTopmostLayerAt,
   hitTestHandles,
@@ -82,12 +83,16 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       const renderer = rendererRef.current;
 
       // 1. Render character layers with idle bob offset and active expression overrides
+      const effectiveMouthConfig = {
+        ...manifest.mouthConfig,
+        reactive2Frame: manifest.reactive2Frame ?? manifest.mouthConfig?.reactive2Frame,
+      };
       const resolved = CharacterResolver.resolve(
         manifest.layers,
         store.getSnapshot(),
         idleBobOffset,
         manifest.expressionConfig,
-        manifest.mouthConfig
+        effectiveMouthConfig
       );
       renderer.render(resolved, manifest.idleConfig);
 
@@ -125,10 +130,10 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
     const loadAssets = async () => {
       for (const asset of manifest.assets) {
-        const rawPath = asset.path.replace(/^\/+/, '');
-        const url = serverPort
-          ? `http://127.0.0.1:${serverPort}/${rawPath}?v=${encodeURIComponent(manifest.metadata.updatedAt || '0')}`
-          : `/${rawPath.startsWith('assets/') ? 'sample_avatar/' + rawPath : rawPath}`;
+        const url = resolveAssetUrl(asset.path, {
+          serverPort,
+          version: manifest.metadata.updatedAt,
+        });
 
         try {
           await renderer.registerAsset(asset.id, url);

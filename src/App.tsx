@@ -88,6 +88,13 @@ export const App: React.FC = () => {
     return unsub;
   }, [showMessage]);
 
+  // Sync AudioVAD config directly from manifest.audioConfig (single source of truth)
+  useEffect(() => {
+    if (manifest.audioConfig) {
+      vadRef.current.updateConfig(manifest.audioConfig);
+    }
+  }, [manifest.audioConfig]);
+
   // Keep manifestRef synced for closures
   const manifestRef = useRef<ProjectManifest>(manifest);
   manifestRef.current = manifest;
@@ -192,6 +199,9 @@ export const App: React.FC = () => {
             setManifest(res.manifest);
             setSelectedLayerId(res.manifest.layers[0]?.id || null);
             storeRef.current.reset();
+            if (res.manifest.audioConfig) {
+              vadRef.current.updateConfig(res.manifest.audioConfig);
+            }
             if (res.manifest.mouthConfig?.thresholds) {
               vadRef.current.setMouthThresholds(res.manifest.mouthConfig.thresholds);
               talkSimRef.current.setThresholds(res.manifest.mouthConfig.thresholds);
@@ -204,6 +214,9 @@ export const App: React.FC = () => {
         setManifest(DEFAULT_PROJECT_MANIFEST);
         setSelectedLayerId(DEFAULT_PROJECT_MANIFEST.layers[0]?.id || null);
         storeRef.current.reset();
+        if (DEFAULT_PROJECT_MANIFEST.audioConfig) {
+          vadRef.current.updateConfig(DEFAULT_PROJECT_MANIFEST.audioConfig);
+        }
         if (DEFAULT_PROJECT_MANIFEST.mouthConfig?.thresholds) {
           vadRef.current.setMouthThresholds(DEFAULT_PROJECT_MANIFEST.mouthConfig.thresholds);
           talkSimRef.current.setThresholds(DEFAULT_PROJECT_MANIFEST.mouthConfig.thresholds);
@@ -231,6 +244,9 @@ export const App: React.FC = () => {
             setManifest(res.manifest);
             setSelectedLayerId(res.manifest.layers[0]?.id || null);
             storeRef.current.reset();
+            if (res.manifest.audioConfig) {
+              vadRef.current.updateConfig(res.manifest.audioConfig);
+            }
             if (res.manifest.mouthConfig?.thresholds) {
               vadRef.current.setMouthThresholds(res.manifest.mouthConfig.thresholds);
               talkSimRef.current.setThresholds(res.manifest.mouthConfig.thresholds);
@@ -254,6 +270,9 @@ export const App: React.FC = () => {
     setManifest(DEFAULT_PROJECT_MANIFEST);
     setSelectedLayerId(DEFAULT_PROJECT_MANIFEST.layers[0]?.id || null);
     storeRef.current.reset();
+    if (DEFAULT_PROJECT_MANIFEST.audioConfig) {
+      vadRef.current.updateConfig(DEFAULT_PROJECT_MANIFEST.audioConfig);
+    }
     if (DEFAULT_PROJECT_MANIFEST.mouthConfig?.thresholds) {
       vadRef.current.setMouthThresholds(DEFAULT_PROJECT_MANIFEST.mouthConfig.thresholds);
       talkSimRef.current.setThresholds(DEFAULT_PROJECT_MANIFEST.mouthConfig.thresholds);
@@ -361,16 +380,30 @@ export const App: React.FC = () => {
     layers,
     assets,
     idleConfig,
+    reactive2Frame,
   }: {
     layers: CharacterLayer[];
     assets: ProjectAssetEntry[];
     idleConfig: IdleConfig;
+    reactive2Frame?: boolean;
   }) => {
+    const isReactive = reactive2Frame !== undefined ? reactive2Frame : true;
     setManifest((prev) => ({
       ...prev,
       layers,
       assets,
       idleConfig,
+      reactive2Frame: isReactive,
+      mouthConfig: prev.mouthConfig
+        ? {
+            ...prev.mouthConfig,
+            reactive2Frame: isReactive,
+          }
+        : {
+            thresholds: { closed: 0.15, small: 0.35, medium: 0.65 },
+            continuousMode: false,
+            reactive2Frame: isReactive,
+          },
       metadata: { ...prev.metadata, updatedAt: new Date().toISOString() },
     }));
     if (layers.length > 0) {

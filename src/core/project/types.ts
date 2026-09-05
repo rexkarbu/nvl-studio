@@ -88,11 +88,15 @@ export interface MouthConfig {
   thresholds: MouthThresholds;
   /** Whether to use continuous mouthOpen parameter instead of discrete shapes */
   continuousMode: boolean;
+  /** When true, avatar behaves in 2-frame reactive mode */
+  reactive2Frame?: boolean;
 }
 
 export interface ProjectManifest {
   schemaVersion: 1;
   projectId: string;
+  /** When true, avatar is configured in 2-Frame Reactive mode (Idle/Talking) */
+  reactive2Frame?: boolean;
   metadata: {
     name: string;
     createdAt: string;

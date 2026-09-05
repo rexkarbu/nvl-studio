@@ -46,9 +46,14 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
   const [isTalking, setIsTalking] = useState<boolean>(false);
   const [isAutoBlink, setIsAutoBlink] = useState<boolean>(true);
   const [isMicActive, setIsMicActive] = useState<boolean>(false);
-  const [threshold, setThreshold] = useState<number>(audioVAD.getConfig().threshold);
-  const [sensitivity, setSensitivity] = useState<number>(audioVAD.getConfig().sensitivity);
-  const [releaseDelay, setReleaseDelay] = useState<number>(audioVAD.getConfig().releaseDelayMs);
+  const audioConfig = manifest?.audioConfig ?? {
+    threshold: audioVAD.getConfig().threshold,
+    sensitivity: audioVAD.getConfig().sensitivity,
+    releaseDelayMs: audioVAD.getConfig().releaseDelayMs,
+  };
+  const threshold = audioConfig.threshold;
+  const sensitivity = audioConfig.sensitivity;
+  const releaseDelay = audioConfig.releaseDelayMs;
   const [micError, setMicError] = useState<string | null>(null);
   const [activeExpression, setActiveExpression] = useState<string>(
     manifest?.expressionConfig?.activeExpression || 'neutral'
@@ -118,25 +123,25 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
 
   const handleThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value);
-    setThreshold(val);
     audioVAD.updateConfig({ threshold: val });
+    if (onUpdateAudioConfig) {
+      onUpdateAudioConfig({ ...audioConfig, threshold: val });
+    }
   };
 
   const handleSensitivityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value);
-    setSensitivity(val);
     audioVAD.updateConfig({ sensitivity: val });
+    if (onUpdateAudioConfig) {
+      onUpdateAudioConfig({ ...audioConfig, sensitivity: val });
+    }
   };
 
   const handleReleaseDelayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseInt(e.target.value, 10);
-    setReleaseDelay(val);
     audioVAD.updateConfig({ releaseDelayMs: val });
-    if (manifest && onUpdateAudioConfig) {
-      onUpdateAudioConfig({
-        ...manifest.audioConfig,
-        releaseDelayMs: val,
-      });
+    if (onUpdateAudioConfig) {
+      onUpdateAudioConfig({ ...audioConfig, releaseDelayMs: val });
     }
   };
 
@@ -155,7 +160,10 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
     setIsCalibrating(true);
     try {
       const suggested = await audioVAD.autoCalibrate(1500);
-      setThreshold(suggested);
+      audioVAD.updateConfig({ threshold: suggested });
+      if (onUpdateAudioConfig) {
+        onUpdateAudioConfig({ ...audioConfig, threshold: suggested });
+      }
     } catch (err: any) {
       console.warn('Calibration error:', err);
     } finally {

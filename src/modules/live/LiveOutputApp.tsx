@@ -7,6 +7,7 @@ import { DEFAULT_PROJECT_MANIFEST } from '../../core/project/defaultProject';
 import { ProjectManifest } from '../../core/project/types';
 import { AvatarParameters } from '../../core/parameters/types';
 import { IdleBobEngine } from '../../core/animation/IdleBobEngine';
+import { resolveAssetUrl } from '../../core/project/pathResolver';
 
 interface LiveOutputAppProps {
   projectId?: string;
@@ -24,6 +25,7 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
     voiceActivity: false,
     voiceLevel: 0,
     blink: false,
+    expression: 'neutral',
   });
 
   const [manifest, setManifest] = useState<ProjectManifest>(initialManifest || DEFAULT_PROJECT_MANIFEST);
@@ -36,11 +38,7 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
   // Helper to load assets into the active renderer
   const loadAssets = async (renderer: CanvasAvatarRenderer, assets: ProjectManifest['assets']) => {
     for (const asset of assets) {
-      let rawPath = asset.path.replace(/^\/+/, '');
-      if (rawPath.startsWith('assets/')) {
-        rawPath = `sample_avatar/${rawPath}`;
-      }
-      const assetUrl = `/${rawPath}`;
+      const assetUrl = resolveAssetUrl(asset.path, { version: manifestRef.current.metadata?.updatedAt });
       try {
         await renderer.registerAsset(asset.id, assetUrl);
       } catch (err) {
@@ -53,12 +51,16 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
   const renderCurrentFrame = (offset: number = 0) => {
     if (!rendererRef.current) return;
     const currentManifest = manifestRef.current;
+    const effectiveMouthConfig = {
+      ...currentManifest.mouthConfig,
+      reactive2Frame: currentManifest.reactive2Frame ?? currentManifest.mouthConfig?.reactive2Frame,
+    };
     const resolved = CharacterResolver.resolve(
       currentManifest.layers,
       latestParamsRef.current,
       offset,
       currentManifest.expressionConfig,
-      currentManifest.mouthConfig
+      effectiveMouthConfig
     );
     rendererRef.current.render(resolved, currentManifest.idleConfig);
   };

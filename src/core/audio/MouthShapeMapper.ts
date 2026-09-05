@@ -91,9 +91,22 @@ export function deriveMouthOpen(
 export function resolveActiveMouthRole(
   parameters: AvatarParameters,
   availableRoles: Set<SemanticLayerRole>,
-  mouthConfig?: MouthConfig
+  mouthConfig?: Partial<MouthConfig>
 ): SemanticLayerRole {
   const isTalking = parameters.voiceActivity;
+
+  // 0. Reactive 2-Frame Mode
+  // If explicitly configured as reactive2Frame and required pair (mouth_closed + mouth_open) exists,
+  // follow binary voiceActivity strictly. This keeps talking frame open during speaking release delay
+  // and idle frame closed when silent, regardless of continuousMode or mouthOpen.
+  if (
+    mouthConfig?.reactive2Frame &&
+    availableRoles.has('mouth_closed') &&
+    (availableRoles.has('mouth_open') || availableRoles.has('mouth_medium'))
+  ) {
+    const openRole = availableRoles.has('mouth_open') ? 'mouth_open' : 'mouth_medium';
+    return isTalking ? openRole : 'mouth_closed';
+  }
 
   // 1. Continuous Mode
   if (mouthConfig?.continuousMode && typeof parameters.mouthOpen === 'number') {

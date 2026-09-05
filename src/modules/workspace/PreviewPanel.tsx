@@ -4,6 +4,7 @@ import { CharacterResolver } from '../../core/resolver/CharacterResolver';
 import { CanvasAvatarRenderer } from '../../core/renderer/CanvasAvatarRenderer';
 import { ProjectManifest } from '../../core/project/types';
 import { AvatarParameters } from '../../core/parameters/types';
+import { resolveAssetUrl } from '../../core/project/pathResolver';
 
 interface PreviewPanelProps {
   manifest: ProjectManifest;
@@ -44,11 +45,10 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
 
     const loadAssets = async () => {
       for (const asset of manifest.assets) {
-        let rawPath = asset.path.replace(/^\/+/, '');
-        // When serverPort is available, fetch from local server to support dynamic project directories
-        const url = serverPort
-          ? `http://127.0.0.1:${serverPort}/${rawPath}?v=${encodeURIComponent(manifest.metadata.updatedAt || '0')}`
-          : `/${rawPath.startsWith('assets/') ? 'sample_avatar/' + rawPath : rawPath}`;
+        const url = resolveAssetUrl(asset.path, {
+          serverPort,
+          version: manifest.metadata.updatedAt,
+        });
 
         try {
           await renderer.registerAsset(asset.id, url);
@@ -58,12 +58,16 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       }
 
       // Initial render
+      const effectiveMouthConfig = {
+        ...manifest.mouthConfig,
+        reactive2Frame: manifest.reactive2Frame ?? manifest.mouthConfig?.reactive2Frame,
+      };
       const resolved = CharacterResolver.resolve(
         manifest.layers,
         store.getSnapshot(),
         0,
         manifest.expressionConfig,
-        manifest.mouthConfig
+        effectiveMouthConfig
       );
       renderer.render(resolved);
     };
@@ -74,12 +78,16 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
     const unsubscribe = store.subscribe((params) => {
       setCurrentParams(params);
       if (rendererRef.current) {
+        const effectiveMouthConfig = {
+          ...manifest.mouthConfig,
+          reactive2Frame: manifest.reactive2Frame ?? manifest.mouthConfig?.reactive2Frame,
+        };
         const resolved = CharacterResolver.resolve(
           manifest.layers,
           params,
           0,
           manifest.expressionConfig,
-          manifest.mouthConfig
+          effectiveMouthConfig
         );
         rendererRef.current.render(resolved);
       }

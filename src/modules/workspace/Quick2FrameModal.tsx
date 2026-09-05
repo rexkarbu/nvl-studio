@@ -4,7 +4,9 @@ import {
   ProjectAssetEntry,
   ProjectManifest,
   IdleConfig,
+  SemanticLayerRole,
 } from '../../core/project/types';
+import { resolveAssetUrl } from '../../core/project/pathResolver';
 
 export interface Quick2FrameModalProps {
   isOpen: boolean;
@@ -15,6 +17,7 @@ export interface Quick2FrameModalProps {
     layers: CharacterLayer[];
     assets: ProjectAssetEntry[];
     idleConfig: IdleConfig;
+    reactive2Frame?: boolean;
   }) => void;
 }
 
@@ -73,13 +76,10 @@ export const Quick2FrameModal: React.FC<Quick2FrameModalProps> = ({
   const getAssetPreviewUrl = (assetId: string): string => {
     const asset = allAssets.find((a) => a.id === assetId);
     if (!asset) return '';
-    if (asset.path.startsWith('data:') || asset.path.startsWith('blob:')) {
-      return asset.path;
-    }
-    const rawPath = asset.path.replace(/^\/+/, '');
-    return serverPort
-      ? `http://127.0.0.1:${serverPort}/${rawPath}?v=${encodeURIComponent(manifest.metadata.updatedAt || '0')}`
-      : `/${rawPath.startsWith('assets/') ? 'sample_avatar/' + rawPath : rawPath}`;
+    return resolveAssetUrl(asset.path, {
+      serverPort,
+      version: manifest.metadata?.updatedAt,
+    });
   };
 
   // Import handler for desktop or fallback browser file reader
@@ -176,7 +176,79 @@ export const Quick2FrameModal: React.FC<Quick2FrameModalProps> = ({
       zIndex: 1,
     };
 
-    const updatedLayers = replaceLayers ? [idleLayer, talkingLayer] : [...manifest.layers, idleLayer, talkingLayer];
+    let updatedLayers: CharacterLayer[];
+    if (replaceLayers) {
+      updatedLayers = [idleLayer, talkingLayer];
+    } else {
+      let foundClosedPrimary = false;
+      let foundOpenPrimary = false;
+
+      const processedLayers: CharacterLayer[] = manifest.layers.map((l) => {
+        // Handle mouth_closed
+        if (l.role === 'mouth_closed') {
+          if (!foundClosedPrimary) {
+            foundClosedPrimary = true;
+            // Update primary mouth_closed with new asset, preserve transform and zIndex
+            return {
+              ...l,
+              assetId: frame1AssetId,
+              visible: true,
+            };
+          } else {
+            // Deactivate duplicate mouth_closed
+            return {
+              ...l,
+              role: 'custom' as SemanticLayerRole,
+              visible: false,
+            };
+          }
+        }
+
+        // Handle mouth_open
+        if (l.role === 'mouth_open') {
+          if (!foundOpenPrimary) {
+            foundOpenPrimary = true;
+            // Update primary mouth_open with new asset, preserve transform and zIndex
+            return {
+              ...l,
+              assetId: frame2AssetId,
+              visible: true,
+            };
+          } else {
+            // Deactivate duplicate mouth_open
+            return {
+              ...l,
+              role: 'custom' as SemanticLayerRole,
+              visible: false,
+            };
+          }
+        }
+
+        // Deactivate superseded multi-frame mouth layers so they do not render
+        if (l.role === 'mouth_small' || l.role === 'mouth_medium' || l.role === 'mouth_wide') {
+          return {
+            ...l,
+            role: 'custom' as SemanticLayerRole,
+            visible: false,
+          };
+        }
+
+        // Preserve non-mouth layers (body, accessory, custom, eye_open, eye_closed) untouched
+        return l;
+      });
+
+      // If existing layers had no mouth_closed or mouth_open, append them
+      if (!foundClosedPrimary) {
+        const maxZ = processedLayers.reduce((max, l) => Math.max(max, l.zIndex), -1);
+        processedLayers.push({ ...idleLayer, zIndex: maxZ + 1 });
+      }
+      if (!foundOpenPrimary) {
+        const maxZ = processedLayers.reduce((max, l) => Math.max(max, l.zIndex), -1);
+        processedLayers.push({ ...talkingLayer, zIndex: maxZ + 1 });
+      }
+
+      updatedLayers = processedLayers;
+    }
 
     const updatedIdleConfig: IdleConfig = {
       enabled: enableBobbing,
@@ -190,6 +262,7 @@ export const Quick2FrameModal: React.FC<Quick2FrameModalProps> = ({
       layers: updatedLayers,
       assets: allAssets,
       idleConfig: updatedIdleConfig,
+      reactive2Frame: true,
     });
 
     onClose();

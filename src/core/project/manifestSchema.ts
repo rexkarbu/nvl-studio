@@ -258,6 +258,14 @@ export function validateManifest(data: unknown): ValidationResult {
     if (closed < 0 || small < closed || medium < small || medium > 1.0) {
       return { valid: false, error: 'mouthConfig.thresholds must satisfy 0 <= closed <= small <= medium <= 1.0' };
     }
+    if (obj.mouthConfig.reactive2Frame !== undefined && typeof obj.mouthConfig.reactive2Frame !== 'boolean') {
+      return { valid: false, error: 'mouthConfig.reactive2Frame must be a boolean' };
+    }
+  }
+
+  // 13. reactive2Frame (optional)
+  if (obj.reactive2Frame !== undefined && typeof obj.reactive2Frame !== 'boolean') {
+    return { valid: false, error: 'reactive2Frame must be a boolean' };
   }
 
   return { valid: true, manifest: obj as ProjectManifest };

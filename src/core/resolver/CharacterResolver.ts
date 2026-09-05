@@ -16,7 +16,7 @@ export class CharacterResolver {
     parameters: AvatarParameters,
     idleBobOffset: number = 0,
     expressionConfig?: ExpressionConfig,
-    mouthConfig?: MouthConfig
+    mouthConfig?: Partial<MouthConfig>
   ): ResolvedVisualState {
     const activeLayers: ResolvedLayer[] = [];
 
@@ -30,6 +30,9 @@ export class CharacterResolver {
 
     // Determine the single active mouth role based on continuous/shape mapping and available frames
     const activeMouthRole = resolveActiveMouthRole(parameters, availableMouthRoles, mouthConfig);
+
+    // Determine if reactive 2-frame mode is active
+    const isReactive = Boolean(mouthConfig?.reactive2Frame);
 
     // Determine if rig has a dedicated body layer, or if 2-frame mouth_closed acts as the bobbing base
     const hasBodyRole = layers.some((l) => l.role === 'body');
@@ -71,8 +74,12 @@ export class CharacterResolver {
       }
 
       if (shouldRender) {
-        // Idle bob applies to body layer (or mouth_closed if 2-frame rig without body) during idle state
-        const isBobTarget = layer.role === 'body' || (!hasBodyRole && layer.role === 'mouth_closed');
+        // In reactive 2-frame mode, idle bobbing explicitly targets mouth_closed even if an old body layer
+        // was preserved by Clean Replace OFF, since 2D canvas layers do not have parent-child transform inheritance.
+        // In standard multi-frame mode, preserve existing behavior: target body, or mouth_closed if no body layer exists.
+        const isBobTarget = isReactive
+          ? layer.role === 'mouth_closed'
+          : (layer.role === 'body' || (!hasBodyRole && layer.role === 'mouth_closed'));
         const applyBob = isBobTarget && !parameters.voiceActivity && idleBobOffset !== 0;
         const resolvedY = applyBob ? layer.y + idleBobOffset : layer.y;
 
@@ -102,7 +109,9 @@ export class CharacterResolver {
             // Apply only properties that are explicitly defined in the override (additive)
             if (override.x !== undefined) item.x = override.x;
             if (override.y !== undefined) {
-              const isBobTarget = item.layer.role === 'body' || (!hasBodyRole && item.layer.role === 'mouth_closed');
+              const isBobTarget = isReactive
+                ? item.layer.role === 'mouth_closed'
+                : (item.layer.role === 'body' || (!hasBodyRole && item.layer.role === 'mouth_closed'));
               const applyBob = isBobTarget && !parameters.voiceActivity && idleBobOffset !== 0;
               item.y = applyBob ? override.y + idleBobOffset : override.y;
             }
