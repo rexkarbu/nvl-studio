@@ -186,7 +186,7 @@ const mouthClosedPng = createPng(W, H, (x, y) => {
 });
 fs.writeFileSync(path.join(targetDir, 'mouth-closed.png'), mouthClosedPng);
 
-// 5. Mouth Open (talking)
+// 5. Mouth Open / Medium (talking)
 const mouthOpenPng = createPng(W, H, (x, y) => {
   // Open smiling mouth (cx: 300, cy: 318, rx: 25, ry: 18)
   const mdx = (x - 300) / 25;
@@ -203,4 +203,36 @@ const mouthOpenPng = createPng(W, H, (x, y) => {
 });
 fs.writeFileSync(path.join(targetDir, 'mouth-open.png'), mouthOpenPng);
 
-console.log('[generateSampleAssets] Successfully created 5 transparent PNG assets in sample_avatar/assets/');
+// 6. Mouth Small (slightly open for soft volume)
+const mouthSmallPng = createPng(W, H, (x, y) => {
+  // Small smiling mouth (cx: 300, cy: 315, rx: 16, ry: 10)
+  const mdx = (x - 300) / 16;
+  const mdy = (y - 315) / 10;
+  const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
+
+  if (mDist <= 1.0) {
+    if (mDist >= 0.82) return [160, 50, 70, 255]; // Outline
+    if (y > 317) return [255, 130, 150, 255]; // Tongue
+    return [120, 30, 50, 255]; // Interior
+  }
+  return [0, 0, 0, 0];
+});
+fs.writeFileSync(path.join(targetDir, 'mouth-small.png'), mouthSmallPng);
+
+// 7. Mouth Wide (wide open for loud volume/shout)
+const mouthWidePng = createPng(W, H, (x, y) => {
+  // Wide open mouth (cx: 300, cy: 322, rx: 34, ry: 25)
+  const mdx = (x - 300) / 34;
+  const mdy = (y - 322) / 25;
+  const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
+
+  if (mDist <= 1.0) {
+    if (mDist >= 0.88) return [160, 50, 70, 255]; // Outline
+    if (y > 324) return [255, 130, 150, 255]; // Tongue
+    return [120, 30, 50, 255]; // Interior
+  }
+  return [0, 0, 0, 0];
+});
+fs.writeFileSync(path.join(targetDir, 'mouth-wide.png'), mouthWidePng);
+
+console.log('[generateSampleAssets] Successfully created 7 transparent PNG assets in sample_avatar/assets/');

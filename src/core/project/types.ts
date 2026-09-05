@@ -4,6 +4,9 @@ export type SemanticLayerRole =
   | 'eye_closed'
   | 'mouth_closed'
   | 'mouth_open'
+  | 'mouth_small'
+  | 'mouth_medium'
+  | 'mouth_wide'
   | 'accessory'
   | 'custom';
 
@@ -69,6 +72,20 @@ export interface ExpressionConfig {
   hotkeys?: HotkeyMapping[];
 }
 
+export interface MouthThresholds {
+  closed: number; // default: 0.15 — below this = closed
+  small: number;  // default: 0.35 — below this = small
+  medium: number; // default: 0.65 — below this = medium
+  // above medium = wide
+}
+
+export interface MouthConfig {
+  /** Voice level thresholds for each mouth shape (0.0 - 1.0) */
+  thresholds: MouthThresholds;
+  /** Whether to use continuous mouthOpen parameter instead of discrete shapes */
+  continuousMode: boolean;
+}
+
 export interface ProjectManifest {
   schemaVersion: 1;
   projectId: string;
@@ -88,6 +105,7 @@ export interface ProjectManifest {
   idleConfig?: IdleConfig;
   blinkConfig?: BlinkSettings;
   expressionConfig?: ExpressionConfig;
+  mouthConfig?: MouthConfig;
   audioConfig: {
     threshold: number;      // 0.0 - 1.0 (default: 0.15)
     sensitivity: number;    // 1.0 - 5.0 (default: 2.0)

@@ -56,6 +56,33 @@ export const ROLE_METADATA: Record<SemanticLayerRole, RoleDefinition> = {
     badgeTextColor: '#ff8906',
     badgeBorderColor: 'rgba(255, 137, 6, 0.35)',
   },
+  mouth_small: {
+    role: 'mouth_small',
+    label: 'Mouth Small',
+    description: 'Visible for soft voice / slight opening',
+    isUnique: true,
+    badgeColor: 'rgba(255, 179, 71, 0.15)',
+    badgeTextColor: '#ffb347',
+    badgeBorderColor: 'rgba(255, 179, 71, 0.35)',
+  },
+  mouth_medium: {
+    role: 'mouth_medium',
+    label: 'Mouth Medium',
+    description: 'Visible for normal speech volume',
+    isUnique: true,
+    badgeColor: 'rgba(255, 137, 6, 0.15)',
+    badgeTextColor: '#ff8906',
+    badgeBorderColor: 'rgba(255, 137, 6, 0.35)',
+  },
+  mouth_wide: {
+    role: 'mouth_wide',
+    label: 'Mouth Wide',
+    description: 'Visible for loud speech / shouting',
+    isUnique: true,
+    badgeColor: 'rgba(255, 84, 112, 0.15)',
+    badgeTextColor: '#ff5470',
+    badgeBorderColor: 'rgba(255, 84, 112, 0.35)',
+  },
   accessory: {
     role: 'accessory',
     label: 'Accessory',
@@ -160,11 +187,12 @@ export interface RoleValidationResult {
 }
 
 /**
- * Validates whether all 5 core PNGtuber semantic roles are assigned.
+ * Validates whether all core PNGtuber semantic roles are assigned.
  * Produces user-friendly, specific warning descriptions.
+ * For open mouth: accepts any of mouth_open, mouth_small, mouth_medium, or mouth_wide.
  */
 export function validateRoleMapping(layers: CharacterLayer[]): RoleValidationResult {
-  const requiredRoles: { role: SemanticLayerRole; message: string }[] = [
+  const baseRequiredRoles: { role: SemanticLayerRole; message: string }[] = [
     {
       role: 'body',
       message: "Missing 'body' — assign a base layer for your character.",
@@ -181,10 +209,6 @@ export function validateRoleMapping(layers: CharacterLayer[]): RoleValidationRes
       role: 'mouth_closed',
       message: "Missing 'mouth_closed' — assign a layer for closed mouth when silent.",
     },
-    {
-      role: 'mouth_open',
-      message: "Missing 'mouth_open' — assign a layer to enable mouth opening during speech.",
-    },
   ];
 
   const mappedRoles: Record<SemanticLayerRole, string | null> = {
@@ -193,6 +217,9 @@ export function validateRoleMapping(layers: CharacterLayer[]): RoleValidationRes
     eye_closed: null,
     mouth_closed: null,
     mouth_open: null,
+    mouth_small: null,
+    mouth_medium: null,
+    mouth_wide: null,
     accessory: null,
     custom: null,
   };
@@ -206,7 +233,7 @@ export function validateRoleMapping(layers: CharacterLayer[]): RoleValidationRes
   const warnings: RoleValidationWarning[] = [];
   const missingRoles: SemanticLayerRole[] = [];
 
-  for (const req of requiredRoles) {
+  for (const req of baseRequiredRoles) {
     if (!mappedRoles[req.role]) {
       missingRoles.push(req.role);
       warnings.push({
@@ -214,6 +241,22 @@ export function validateRoleMapping(layers: CharacterLayer[]): RoleValidationRes
         message: req.message,
       });
     }
+  }
+
+  // Open mouth validation: any of mouth_open, mouth_small, mouth_medium, mouth_wide satisfies it
+  const hasOpenMouth = Boolean(
+    mappedRoles.mouth_open ||
+    mappedRoles.mouth_small ||
+    mappedRoles.mouth_medium ||
+    mappedRoles.mouth_wide
+  );
+
+  if (!hasOpenMouth) {
+    missingRoles.push('mouth_open');
+    warnings.push({
+      role: 'mouth_open',
+      message: "Missing mouth opening layer — assign 'mouth_open', 'mouth_small', 'mouth_medium', or 'mouth_wide'.",
+    });
   }
 
   return {
@@ -236,6 +279,18 @@ const AUTO_ASSIGN_PATTERNS: { role: SemanticLayerRole; regex: RegExp }[] = [
   {
     role: 'eye_closed',
     regex: /(?:eye.*close|mata.*tutup|blink|eyes_closed|eye-close)/i,
+  },
+  {
+    role: 'mouth_small',
+    regex: /(?:mouth.*small|mulut.*kecil|mouth_small|mouth-small)/i,
+  },
+  {
+    role: 'mouth_medium',
+    regex: /(?:mouth.*medium|mouth.*mid|mulut.*sedang|mouth_medium|mouth-medium)/i,
+  },
+  {
+    role: 'mouth_wide',
+    regex: /(?:mouth.*wide|mouth.*big|mulut.*lebar|mouth_wide|mouth-wide)/i,
   },
   {
     role: 'mouth_open',

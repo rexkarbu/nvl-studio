@@ -206,3 +206,31 @@ Step 12 mengawali Stage C dengan menambahkan sistem ekspresi karakter dan pemicu
    - Pergantian ekspresi ditransmisikan ke WebSocket OBS melalui field `AvatarParameters.expression` yang sudah ada sejak Step 1. Tidak diperlukan modifikasi pada skema payload live framing biner/JSON.
 5. **Skema Manifest Terbuka & Kompatibel**:
    - Menambahkan field opsional `expressionConfig?: ExpressionConfig` pada `ProjectManifest`. Proyek versi sebelumnya tanpa konfigurasi ekspresi tetap valid dan otomatis menggunakan fallback ekspresi standar (`neutral`, `happy`, `angry`, `sad`, `shock`, `embarrassed`).
+
+---
+
+## ADR 010: Multi-Frame Mouth Mapping & Continuous Parameter Bridge
+
+### Status
+Accepted
+
+### Konteks
+Step 13 meng-upgrade animasi mulut avatar PNGtuber dari sistem biner sederhana (Closed/Open) menjadi sistem 4-frame kontinu (`closed` → `small` → `medium` → `wide`) berdasarkan `voiceLevel`, serta memperkenalkan parameter kontinu `mouthOpen` (0.0 - 1.0) sebagai fondasi jembatan menuju mesh deformation/rigging di masa depan. Sistem harus menjamin kompatibilitas mundur 100% untuk model avatar lama yang hanya memiliki 2 layer mulut.
+
+### Keputusan Arsitektur
+1. **Perluasan Semantic Role Secara Aditif**:
+   - Memperluas tipe `SemanticLayerRole` dengan tiga role baru: `'mouth_small' | 'mouth_medium' | 'mouth_wide'`. Role lama `'mouth_open'` tetap dipertahankan untuk backward compatibility (berfungsi setara dengan bukaan medium).
+   - Validasi role (`validateRoleMapping`) mengadopsi Option A: role `mouth_closed` tetap bersifat *mandatory*, sedangkan kebutuhan layer mulut terbuka dipenuhi oleh *setidaknya salah satu* dari `mouth_open`, `mouth_small`, `mouth_medium`, atau `mouth_wide`.
+2. **Prioritas Resolusi & Graceful Fallback di CharacterResolver**:
+   - Evaluasi layer mulut dilakukan secara deterministik dengan prioritas:
+     1. *Continuous Mode*: Jika `continuousMode: true` dan parameter `mouthOpen` valid, memilih frame terdekat. Jika avatar hanya memiliki 2 frame, otomatis terdegradasi secara mulus ke biner.
+     2. *Discrete Mouth Shape*: Jika parameter `mouthShape` aktif, mencari layer dengan role `mouth_${shape}`. Jika layer frame target tidak tersedia (misal shape `'small'` atau `'wide'` pada model 2-frame), resolver otomatis fallback ke `mouth_open` saat bersuara atau `mouth_closed` saat hening.
+     3. *Binary Fallback*: Jika tidak ada konfigurasi multi-frame, avatar beroperasi menggunakan logika biner Closed/Open klasik.
+3. **Parameter Kontinu `mouthOpen` & Deadzone Ambien**:
+   - `mouthOpen` dinormalisasi secara linear dari interval `[thresholds.closed, 1.0]` ke rentang `[0.0, 1.0]`. Nilai di bawah atau sama dengan `thresholds.closed` bernilai `0.0` (deadzone) untuk mencegah jitter visual dari noise mikrofon ambien.
+   - Nilai dibulatkan hingga 3 desimal untuk efisiensi serialisasi protokol WebSocket tanpa jitter.
+4. **Konsistensi Skema Proyek**:
+   - Memperbaiki inkonsistensi struktur `idleConfig` pada `sample_avatar/project.nvl` dari nested object (`idleConfig.verticalBob`) menjadi flat object (`enabled`, `amplitude`, `speed`) agar seragam dengan `defaultProject.ts` dan skema validasi `manifestSchema.ts`.
+5. **UI Kontrol & Kalibrasi Realtime**:
+   - Menyediakan sub-tab `Mouth` di `ControlsPanel` via komponen `MouthMappingPanel`. Menampilkan visualizer 4 frame aktif, meteran audio realtime dengan threshold markers, slider konfigurasi ambang batas, toggle mode kontinu, dan simulator manual suara.
+

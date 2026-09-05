@@ -4,6 +4,8 @@ export const DEFAULT_AVATAR_PARAMETERS: Readonly<AvatarParameters> = {
   voiceActivity: false,
   voiceLevel: 0,
   blink: false,
+  mouthShape: 'closed',
+  mouthOpen: 0,
 };
 
 /**

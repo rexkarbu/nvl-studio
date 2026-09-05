@@ -1,6 +1,7 @@
-import { CharacterLayer, ExpressionConfig } from '../project/types';
+import { CharacterLayer, ExpressionConfig, MouthConfig, SemanticLayerRole } from '../project/types';
 import { AvatarParameters } from '../parameters/types';
 import { ResolvedLayer, ResolvedVisualState } from './types';
+import { resolveActiveMouthRole } from '../audio/MouthShapeMapper';
 
 /**
  * Deterministic character resolver.
@@ -14,9 +15,21 @@ export class CharacterResolver {
     layers: CharacterLayer[],
     parameters: AvatarParameters,
     idleBobOffset: number = 0,
-    expressionConfig?: ExpressionConfig
+    expressionConfig?: ExpressionConfig,
+    mouthConfig?: MouthConfig
   ): ResolvedVisualState {
     const activeLayers: ResolvedLayer[] = [];
+
+    // Collect available mouth roles in the project for deterministic multi-frame resolution
+    const availableMouthRoles = new Set<SemanticLayerRole>();
+    for (const layer of layers) {
+      if (layer.role.startsWith('mouth_')) {
+        availableMouthRoles.add(layer.role);
+      }
+    }
+
+    // Determine the single active mouth role based on continuous/shape mapping and available frames
+    const activeMouthRole = resolveActiveMouthRole(parameters, availableMouthRoles, mouthConfig);
 
     // 1. Role-based visibility evaluation & 2. Idle bob offset
     for (const layer of layers) {
@@ -42,11 +55,11 @@ export class CharacterResolver {
           break;
 
         case 'mouth_closed':
-          shouldRender = !parameters.voiceActivity;
-          break;
-
         case 'mouth_open':
-          shouldRender = parameters.voiceActivity;
+        case 'mouth_small':
+        case 'mouth_medium':
+        case 'mouth_wide':
+          shouldRender = layer.role === activeMouthRole;
           break;
 
         default:

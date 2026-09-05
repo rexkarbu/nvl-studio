@@ -3,12 +3,13 @@ import { ParameterStore } from '../../core/parameters/ParameterStore';
 import { TalkSimulator } from '../../core/audio/TalkSimulator';
 import { BlinkScheduler } from '../../core/animation/BlinkScheduler';
 import { AudioVAD } from '../../core/audio/AudioVAD';
-import { CharacterLayer, ProjectManifest, SemanticLayerRole, IdleConfig, BlinkSettings, ExpressionConfig } from '../../core/project/types';
+import { CharacterLayer, ProjectManifest, SemanticLayerRole, IdleConfig, BlinkSettings, ExpressionConfig, MouthConfig } from '../../core/project/types';
 import { validateRoleMapping } from '../../core/project/roleAssignment';
 import { AnimatorConfigPanel } from './AnimatorConfigPanel';
 import { AudioMeter } from './AudioMeter';
 import { ExpressionPanel } from './ExpressionPanel';
 import { HotkeySettings } from './HotkeySettings';
+import { MouthMappingPanel } from './MouthMappingPanel';
 import { DEFAULT_EXPRESSIONS, DEFAULT_HOTKEYS } from '../../core/project/defaultProject';
 
 interface ControlsPanelProps {
@@ -23,6 +24,7 @@ interface ControlsPanelProps {
   onUpdateAudioConfig?: (audioConfig: ProjectManifest['audioConfig']) => void;
   onSelectExpression?: (expressionId: string) => void;
   onUpdateExpressionConfig?: (config: ExpressionConfig) => void;
+  onUpdateMouthConfig?: (config: MouthConfig) => void;
 }
 
 export const ControlsPanel: React.FC<ControlsPanelProps> = ({
@@ -37,8 +39,9 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
   onUpdateAudioConfig,
   onSelectExpression,
   onUpdateExpressionConfig,
+  onUpdateMouthConfig,
 }) => {
-  const [panelTab, setPanelTab] = useState<'animator' | 'expressions' | 'quick'>('animator');
+  const [panelTab, setPanelTab] = useState<'animator' | 'expressions' | 'mouth' | 'quick'>('animator');
   const [selectedLayerId, setSelectedLayerId] = useState<string>('layer-mouth-closed');
   const [isTalking, setIsTalking] = useState<boolean>(false);
   const [isAutoBlink, setIsAutoBlink] = useState<boolean>(true);
@@ -177,6 +180,12 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
           🎭 Expressions
         </button>
         <button
+          className={`sidebar-tab-btn ${panelTab === 'mouth' ? 'active' : ''}`}
+          onClick={() => setPanelTab('mouth')}
+        >
+          🗣️ Mouth
+        </button>
+        <button
           className={`sidebar-tab-btn ${panelTab === 'quick' ? 'active' : ''}`}
           onClick={() => setPanelTab('quick')}
         >
@@ -222,6 +231,15 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
             }}
           />
         </div>
+      )}
+
+      {panelTab === 'mouth' && manifest && (
+        <MouthMappingPanel
+          mouthConfig={manifest.mouthConfig}
+          store={store}
+          talkSimulator={talkSimulator}
+          onUpdateMouthConfig={onUpdateMouthConfig || (() => {})}
+        />
       )}
 
       {panelTab === 'quick' && (
@@ -280,7 +298,12 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
                   { role: 'mouth_closed', label: 'Mouth Closed' },
                   { role: 'mouth_open', label: 'Mouth Open' },
                 ].map(({ role, label }) => {
-                  const assignedLayer = roleValidation.mappedRoles[role as SemanticLayerRole];
+                  const assignedLayer = role === 'mouth_open'
+                    ? (roleValidation.mappedRoles.mouth_open ||
+                       roleValidation.mappedRoles.mouth_medium ||
+                       roleValidation.mappedRoles.mouth_small ||
+                       roleValidation.mappedRoles.mouth_wide)
+                    : roleValidation.mappedRoles[role as SemanticLayerRole];
                   return (
                     <div key={role} className="role-status-row">
                       <span className="role-status-dot">{assignedLayer ? '🟢' : '🔴'}</span>

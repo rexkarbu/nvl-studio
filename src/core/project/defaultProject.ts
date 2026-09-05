@@ -40,9 +40,21 @@ export const DEFAULT_PROJECT_MANIFEST: Readonly<ProjectManifest> = {
       format: 'png',
     },
     {
+      id: 'asset-mouth-small',
+      name: 'Mouth Small',
+      path: 'sample_avatar/assets/mouth-small.png',
+      format: 'png',
+    },
+    {
       id: 'asset-mouth-open',
       name: 'Mouth Open',
       path: 'sample_avatar/assets/mouth-open.png',
+      format: 'png',
+    },
+    {
+      id: 'asset-mouth-wide',
+      name: 'Mouth Wide',
+      path: 'sample_avatar/assets/mouth-wide.png',
       format: 'png',
     },
   ],
@@ -108,11 +120,11 @@ export const DEFAULT_PROJECT_MANIFEST: Readonly<ProjectManifest> = {
       zIndex: 20,
     },
     {
-      id: 'layer-mouth-open',
-      name: 'Mouth Open',
+      id: 'layer-mouth-small',
+      name: 'Mouth Small',
       type: 'sprite',
-      assetId: 'asset-mouth-open',
-      role: 'mouth_open',
+      assetId: 'asset-mouth-small',
+      role: 'mouth_small',
       x: 960,
       y: 540,
       scaleX: 1.4,
@@ -121,6 +133,36 @@ export const DEFAULT_PROJECT_MANIFEST: Readonly<ProjectManifest> = {
       opacity: 1.0,
       visible: true,
       zIndex: 21,
+    },
+    {
+      id: 'layer-mouth-open',
+      name: 'Mouth Medium',
+      type: 'sprite',
+      assetId: 'asset-mouth-open',
+      role: 'mouth_medium',
+      x: 960,
+      y: 540,
+      scaleX: 1.4,
+      scaleY: 1.4,
+      rotation: 0,
+      opacity: 1.0,
+      visible: true,
+      zIndex: 22,
+    },
+    {
+      id: 'layer-mouth-wide',
+      name: 'Mouth Wide',
+      type: 'sprite',
+      assetId: 'asset-mouth-wide',
+      role: 'mouth_wide',
+      x: 960,
+      y: 540,
+      scaleX: 1.4,
+      scaleY: 1.4,
+      rotation: 0,
+      opacity: 1.0,
+      visible: true,
+      zIndex: 23,
     },
   ],
   idleConfig: {
@@ -185,6 +227,14 @@ export const DEFAULT_PROJECT_MANIFEST: Readonly<ProjectManifest> = {
       { expressionId: 'sad', key: 'F4' },
     ],
   },
+  mouthConfig: {
+    thresholds: {
+      closed: 0.15,
+      small: 0.35,
+      medium: 0.65,
+    },
+    continuousMode: false,
+  },
   audioConfig: {
     threshold: 0.15,
     sensitivity: 2.0,
@@ -198,3 +248,5 @@ export const DEFAULT_PROJECT_MANIFEST: Readonly<ProjectManifest> = {
 
 export const DEFAULT_EXPRESSIONS = DEFAULT_PROJECT_MANIFEST.expressionConfig!.expressions;
 export const DEFAULT_HOTKEYS = DEFAULT_PROJECT_MANIFEST.expressionConfig!.hotkeys!;
+export const DEFAULT_MOUTH_THRESHOLDS = DEFAULT_PROJECT_MANIFEST.mouthConfig!.thresholds;
+export const DEFAULT_MOUTH_CONFIG = DEFAULT_PROJECT_MANIFEST.mouthConfig!;

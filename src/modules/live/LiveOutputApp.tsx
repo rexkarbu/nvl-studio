@@ -57,7 +57,8 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
       currentManifest.layers,
       latestParamsRef.current,
       offset,
-      currentManifest.expressionConfig
+      currentManifest.expressionConfig,
+      currentManifest.mouthConfig
     );
     rendererRef.current.render(resolved);
   };

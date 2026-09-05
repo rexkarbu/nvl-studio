@@ -86,7 +86,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         manifest.layers,
         store.getSnapshot(),
         idleBobOffset,
-        manifest.expressionConfig
+        manifest.expressionConfig,
+        manifest.mouthConfig
       );
       renderer.render(resolved);
 
@@ -101,7 +102,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         }
       }
     },
-    [manifest.layers, store, selectedLayerId]
+    [manifest.layers, store, selectedLayerId, manifest.expressionConfig, manifest.mouthConfig]
   );
 
   // Initialize Canvas 2D Renderer & load assets

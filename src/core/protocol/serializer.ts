@@ -74,6 +74,7 @@ export class ProtocolSerializer {
         voiceLevel: params.voiceLevel,
         blink: params.blink,
         mouthShape: typeof params.mouthShape === 'string' ? params.mouthShape : undefined,
+        mouthOpen: typeof params.mouthOpen === 'number' ? params.mouthOpen : undefined,
         expression: typeof params.expression === 'string' ? params.expression : undefined,
         custom: typeof params.custom === 'object' && params.custom !== null ? params.custom : undefined,
       },

@@ -38,9 +38,21 @@
       "format": "png"
     },
     {
+      "id": "asset-mouth-small",
+      "name": "Mouth Small",
+      "path": "assets/mouth-small.png",
+      "format": "png"
+    },
+    {
       "id": "asset-mouth-open",
       "name": "Mouth Open",
       "path": "assets/mouth-open.png",
+      "format": "png"
+    },
+    {
+      "id": "asset-mouth-wide",
+      "name": "Mouth Wide",
+      "path": "assets/mouth-wide.png",
       "format": "png"
     }
   ],
@@ -106,11 +118,11 @@
       "zIndex": 20
     },
     {
-      "id": "layer-mouth-open",
-      "name": "Mouth Open",
+      "id": "layer-mouth-small",
+      "name": "Mouth Small",
       "type": "sprite",
-      "assetId": "asset-mouth-open",
-      "role": "mouth_open",
+      "assetId": "asset-mouth-small",
+      "role": "mouth_small",
       "x": 960,
       "y": 540,
       "scaleX": 1.4,
@@ -119,15 +131,42 @@
       "opacity": 1.0,
       "visible": true,
       "zIndex": 21
+    },
+    {
+      "id": "layer-mouth-open",
+      "name": "Mouth Medium",
+      "type": "sprite",
+      "assetId": "asset-mouth-open",
+      "role": "mouth_medium",
+      "x": 960,
+      "y": 540,
+      "scaleX": 1.4,
+      "scaleY": 1.4,
+      "rotation": 0,
+      "opacity": 1.0,
+      "visible": true,
+      "zIndex": 22
+    },
+    {
+      "id": "layer-mouth-wide",
+      "name": "Mouth Wide",
+      "type": "sprite",
+      "assetId": "asset-mouth-wide",
+      "role": "mouth_wide",
+      "x": 960,
+      "y": 540,
+      "scaleX": 1.4,
+      "scaleY": 1.4,
+      "rotation": 0,
+      "opacity": 1.0,
+      "visible": true,
+      "zIndex": 23
     }
   ],
   "idleConfig": {
     "enabled": true,
-    "verticalBob": {
-      "enabled": true,
-      "amplitude": 8,
-      "speed": 1.5
-    }
+    "amplitude": 8,
+    "speed": 1.5
   },
   "blinkConfig": {
     "enabled": true,
@@ -185,6 +224,14 @@
       { "expressionId": "angry", "key": "F3" },
       { "expressionId": "sad", "key": "F4" }
     ]
+  },
+  "mouthConfig": {
+    "thresholds": {
+      "closed": 0.15,
+      "small": 0.35,
+      "medium": 0.65
+    },
+    "continuousMode": false
   },
   "audioConfig": {
     "threshold": 0.15,

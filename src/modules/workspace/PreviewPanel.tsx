@@ -62,7 +62,8 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
         manifest.layers,
         store.getSnapshot(),
         0,
-        manifest.expressionConfig
+        manifest.expressionConfig,
+        manifest.mouthConfig
       );
       renderer.render(resolved);
     };
@@ -77,7 +78,8 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
           manifest.layers,
           params,
           0,
-          manifest.expressionConfig
+          manifest.expressionConfig,
+          manifest.mouthConfig
         );
         rendererRef.current.render(resolved);
       }

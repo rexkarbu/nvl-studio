@@ -6,7 +6,7 @@ import { AudioVAD } from './core/audio/AudioVAD';
 import { LiveBroadcaster } from './core/sync/LiveBroadcaster';
 import { HotkeyManager } from './core/input/HotkeyManager';
 import { DEFAULT_PROJECT_MANIFEST, DEFAULT_EXPRESSIONS, DEFAULT_HOTKEYS } from './core/project/defaultProject';
-import { CharacterLayer, ProjectManifest, IdleConfig, BlinkSettings, ExpressionConfig } from './core/project/types';
+import { CharacterLayer, ProjectManifest, IdleConfig, BlinkSettings, ExpressionConfig, MouthConfig } from './core/project/types';
 
 import { TopMenuBar } from './modules/workspace/TopMenuBar';
 import { LayerPanel } from './modules/workspace/LayerPanel';
@@ -190,6 +190,10 @@ export const App: React.FC = () => {
             setManifest(res.manifest);
             setSelectedLayerId(res.manifest.layers[0]?.id || null);
             storeRef.current.reset();
+            if (res.manifest.mouthConfig?.thresholds) {
+              vadRef.current.setMouthThresholds(res.manifest.mouthConfig.thresholds);
+              talkSimRef.current.setThresholds(res.manifest.mouthConfig.thresholds);
+            }
             markClean();
             setIsProjectOpen(true);
           }
@@ -198,6 +202,10 @@ export const App: React.FC = () => {
         setManifest(DEFAULT_PROJECT_MANIFEST);
         setSelectedLayerId(DEFAULT_PROJECT_MANIFEST.layers[0]?.id || null);
         storeRef.current.reset();
+        if (DEFAULT_PROJECT_MANIFEST.mouthConfig?.thresholds) {
+          vadRef.current.setMouthThresholds(DEFAULT_PROJECT_MANIFEST.mouthConfig.thresholds);
+          talkSimRef.current.setThresholds(DEFAULT_PROJECT_MANIFEST.mouthConfig.thresholds);
+        }
         markClean();
         setIsProjectOpen(true);
       }
@@ -221,6 +229,10 @@ export const App: React.FC = () => {
             setManifest(res.manifest);
             setSelectedLayerId(res.manifest.layers[0]?.id || null);
             storeRef.current.reset();
+            if (res.manifest.mouthConfig?.thresholds) {
+              vadRef.current.setMouthThresholds(res.manifest.mouthConfig.thresholds);
+              talkSimRef.current.setThresholds(res.manifest.mouthConfig.thresholds);
+            }
             markClean();
             setIsProjectOpen(true);
           }
@@ -240,6 +252,10 @@ export const App: React.FC = () => {
     setManifest(DEFAULT_PROJECT_MANIFEST);
     setSelectedLayerId(DEFAULT_PROJECT_MANIFEST.layers[0]?.id || null);
     storeRef.current.reset();
+    if (DEFAULT_PROJECT_MANIFEST.mouthConfig?.thresholds) {
+      vadRef.current.setMouthThresholds(DEFAULT_PROJECT_MANIFEST.mouthConfig.thresholds);
+      talkSimRef.current.setThresholds(DEFAULT_PROJECT_MANIFEST.mouthConfig.thresholds);
+    }
     markClean();
     setIsProjectOpen(true);
   };
@@ -513,6 +529,20 @@ export const App: React.FC = () => {
     [markDirty]
   );
 
+  const handleUpdateMouthConfig = useCallback(
+    (mouthConfig: MouthConfig) => {
+      setManifest((prev) => ({
+        ...prev,
+        mouthConfig,
+        metadata: { ...prev.metadata, updatedAt: new Date().toISOString() },
+      }));
+      vadRef.current.setMouthThresholds(mouthConfig.thresholds);
+      talkSimRef.current.setThresholds(mouthConfig.thresholds);
+      markDirty();
+    },
+    [markDirty]
+  );
+
   // Hotkey listener for expressions
   useEffect(() => {
     if (isLiveView) return;
@@ -664,6 +694,7 @@ export const App: React.FC = () => {
               onUpdateAudioConfig={handleUpdateAudioConfig}
               onSelectExpression={handleSetExpression}
               onUpdateExpressionConfig={handleUpdateExpressionConfig}
+              onUpdateMouthConfig={handleUpdateMouthConfig}
             />
           )}
         </aside>

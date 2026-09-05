@@ -11,6 +11,8 @@ export interface AvatarParameters {
   blink: boolean;
   /** Extensible mouth shape e.g. 'closed' | 'open' | 'small' | 'wide' */
   mouthShape?: string;
+  /** Continuous mouth open value [0.0 - 1.0] */
+  mouthOpen?: number;
   /** Extensible expression identifier e.g. 'neutral' | 'happy' | 'angry' */
   expression?: string;
   /** Extensible custom parameters dictionary */

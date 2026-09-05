@@ -6,6 +6,9 @@ const VALID_SEMANTIC_ROLES: Set<SemanticLayerRole> = new Set([
   'eye_closed',
   'mouth_closed',
   'mouth_open',
+  'mouth_small',
+  'mouth_medium',
+  'mouth_wide',
   'accessory',
   'custom',
 ]);
@@ -223,6 +226,26 @@ export function validateManifest(data: unknown): ValidationResult {
       if (!Array.isArray(obj.expressionConfig.hotkeys)) {
         return { valid: false, error: 'expressionConfig.hotkeys must be an array' };
       }
+    }
+  }
+
+  // 12. mouthConfig (optional)
+  if (obj.mouthConfig !== undefined) {
+    if (!obj.mouthConfig || typeof obj.mouthConfig !== 'object') {
+      return { valid: false, error: 'Invalid mouthConfig object' };
+    }
+    if (typeof obj.mouthConfig.continuousMode !== 'boolean') {
+      return { valid: false, error: 'mouthConfig.continuousMode must be a boolean' };
+    }
+    if (!obj.mouthConfig.thresholds || typeof obj.mouthConfig.thresholds !== 'object') {
+      return { valid: false, error: 'mouthConfig.thresholds must be an object' };
+    }
+    const { closed, small, medium } = obj.mouthConfig.thresholds;
+    if (typeof closed !== 'number' || typeof small !== 'number' || typeof medium !== 'number') {
+      return { valid: false, error: 'mouthConfig.thresholds values must be numbers' };
+    }
+    if (closed < 0 || small < closed || medium < small || medium > 1.0) {
+      return { valid: false, error: 'mouthConfig.thresholds must satisfy 0 <= closed <= small <= medium <= 1.0' };
     }
   }
 

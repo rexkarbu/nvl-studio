@@ -1,4 +1,6 @@
 import { ParameterStore } from '../parameters/ParameterStore';
+import { MouthThresholds } from '../project/types';
+import { deriveMouthShape, deriveMouthOpen, DEFAULT_MOUTH_THRESHOLDS } from './MouthShapeMapper';
 
 export interface VADConfig {
   threshold: number;      // 0.01 - 1.0 (default: 0.05)
@@ -23,6 +25,7 @@ export const DEFAULT_VAD_CONFIG: Readonly<VADConfig> = {
 export class AudioVAD {
   private store: ParameterStore;
   private config: VADConfig;
+  private mouthThresholds: MouthThresholds = { ...DEFAULT_MOUTH_THRESHOLDS };
   private audioCtx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
@@ -34,9 +37,20 @@ export class AudioVAD {
   private lastActiveTimestamp: number = 0;
   private disconnectListeners: Set<() => void> = new Set();
 
-  constructor(store: ParameterStore, config: Partial<VADConfig> = {}) {
+  constructor(store: ParameterStore, config: Partial<VADConfig> = {}, mouthThresholds?: MouthThresholds) {
     this.store = store;
     this.config = { ...DEFAULT_VAD_CONFIG, ...config };
+    if (mouthThresholds) {
+      this.mouthThresholds = { ...mouthThresholds };
+    }
+  }
+
+  public setMouthThresholds(thresholds: MouthThresholds): void {
+    this.mouthThresholds = { ...thresholds };
+  }
+
+  public getMouthThresholds(): MouthThresholds {
+    return { ...this.mouthThresholds };
   }
 
   public onDeviceDisconnected(callback: () => void): () => void {
@@ -118,7 +132,12 @@ export class AudioVAD {
     }
 
     this.currentRawLevel = 0;
-    this.store.update({ voiceActivity: false, voiceLevel: 0 });
+    this.store.update({
+      voiceActivity: false,
+      voiceLevel: 0,
+      mouthShape: 'closed',
+      mouthOpen: 0,
+    });
   }
 
   /**
@@ -192,28 +211,29 @@ export class AudioVAD {
 
     const now = performance.now();
     const isAboveThreshold = amplifiedLevel >= this.config.threshold;
+    const isWithinRelease = !isAboveThreshold && (now - this.lastActiveTimestamp < this.config.releaseDelayMs);
+    const isSpeaking = isAboveThreshold || isWithinRelease;
 
     if (isAboveThreshold) {
       this.lastActiveTimestamp = now;
+    }
+
+    if (isSpeaking) {
+      const mouthShape = deriveMouthShape(amplifiedLevel, this.mouthThresholds);
+      const mouthOpen = deriveMouthOpen(amplifiedLevel, this.mouthThresholds);
       this.store.update({
         voiceActivity: true,
         voiceLevel: amplifiedLevel,
+        mouthShape,
+        mouthOpen,
       });
     } else {
-      const timeSinceLastActive = now - this.lastActiveTimestamp;
-      if (timeSinceLastActive < this.config.releaseDelayMs) {
-        // Within release delay: keep talking active to prevent jitter
-        this.store.update({
-          voiceActivity: true,
-          voiceLevel: amplifiedLevel,
-        });
-      } else {
-        // Silence confirmed
-        this.store.update({
-          voiceActivity: false,
-          voiceLevel: 0,
-        });
-      }
+      this.store.update({
+        voiceActivity: false,
+        voiceLevel: 0,
+        mouthShape: 'closed',
+        mouthOpen: 0,
+      });
     }
 
     this.animFrameId = requestAnimationFrame(this.loop);
