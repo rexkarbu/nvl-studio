@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ExpressionConfig, ExpressionDefinition, CharacterLayer } from '../../core/project/types';
 import { DEFAULT_EXPRESSIONS } from '../../core/project/defaultProject';
+import { showMessageBox, showConfirmDialog } from './dialogUtils';
 
 interface ExpressionPanelProps {
   expressionConfig?: ExpressionConfig;
@@ -29,11 +30,11 @@ export const ExpressionPanel: React.FC<ExpressionPanelProps> = ({
   const currentLayerOverride = selectedLayerId ? activeOverrides[selectedLayerId] || {} : {};
   const selectedLayer = layers.find((l) => l.id === selectedLayerId);
 
-  const handleAddExpression = () => {
+  const handleAddExpression = async () => {
     if (!newExprName.trim()) return;
     const id = newExprName.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
     if (expressions.some((e) => e.id === id)) {
-      alert(`An expression with ID "${id}" already exists.`);
+      await showMessageBox('Duplicate Expression', `An expression with ID "${id}" already exists.`, 'warning');
       return;
     }
 
@@ -54,13 +55,14 @@ export const ExpressionPanel: React.FC<ExpressionPanelProps> = ({
     setIsAdding(false);
   };
 
-  const handleDeleteExpression = (id: string, e: React.MouseEvent) => {
+  const handleDeleteExpression = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (id === 'neutral') {
-      alert('The "neutral" default expression cannot be deleted.');
+      await showMessageBox('Cannot Delete Expression', 'The "neutral" default expression cannot be deleted.', 'info');
       return;
     }
-    if (confirm(`Delete expression "${id}"?`)) {
+    const confirmed = await showConfirmDialog('Delete Expression', `Delete expression "${id}"?`);
+    if (confirmed) {
       const updatedExpressions = expressions.filter((expr) => expr.id !== id);
       const nextActive = activeId === id ? 'neutral' : activeId;
       onUpdateExpressionConfig({

@@ -27,13 +27,51 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
   });
 
   const [manifest, setManifest] = useState<ProjectManifest>(initialManifest || DEFAULT_PROJECT_MANIFEST);
+  const manifestRef = useRef<ProjectManifest>(manifest);
+  manifestRef.current = manifest;
+
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
   const [lastSeq, setLastSeq] = useState<number>(0);
+
+  // Helper to load assets into the active renderer
+  const loadAssets = async (renderer: CanvasAvatarRenderer, assets: ProjectManifest['assets']) => {
+    for (const asset of assets) {
+      let rawPath = asset.path.replace(/^\/+/, '');
+      if (rawPath.startsWith('assets/')) {
+        rawPath = `sample_avatar/${rawPath}`;
+      }
+      const assetUrl = `/${rawPath}`;
+      try {
+        await renderer.registerAsset(asset.id, assetUrl);
+      } catch (err) {
+        console.error(`[LiveOutput] Failed to load asset ${asset.name} from ${assetUrl}:`, err);
+      }
+    }
+  };
+
+  // Helper to re-render current frame with resolved transforms
+  const renderCurrentFrame = (offset: number = 0) => {
+    if (!rendererRef.current) return;
+    const currentManifest = manifestRef.current;
+    const resolved = CharacterResolver.resolve(
+      currentManifest.layers,
+      latestParamsRef.current,
+      offset,
+      currentManifest.expressionConfig
+    );
+    rendererRef.current.render(resolved);
+  };
 
   // Sync prop changes if initialManifest is updated externally
   useEffect(() => {
     if (initialManifest) {
       setManifest(initialManifest);
+      manifestRef.current = initialManifest;
+      if (rendererRef.current) {
+        loadAssets(rendererRef.current, initialManifest.assets).then(() => {
+          renderCurrentFrame(0);
+        });
+      }
     }
   }, [initialManifest]);
 
@@ -47,6 +85,11 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
           const data = await res.json();
           if (!isCancelled && data && data.layers) {
             setManifest(data);
+            manifestRef.current = data;
+            if (rendererRef.current) {
+              await loadAssets(rendererRef.current, data.assets);
+              renderCurrentFrame(0);
+            }
           }
         }
       } catch {
@@ -90,48 +133,22 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
     };
   }, [isChroma]);
 
+  // Initialize Canvas 2D Renderer & WebSocket connection once per projectId
   useEffect(() => {
     if (!canvasRef.current) return;
 
     // Initialize Canvas 2D Renderer
     const renderer = new CanvasAvatarRenderer({
       canvas: canvasRef.current,
-      virtualWidth: manifest.canvas.width,
-      virtualHeight: manifest.canvas.height,
+      virtualWidth: manifestRef.current.canvas.width,
+      virtualHeight: manifestRef.current.canvas.height,
     });
     rendererRef.current = renderer;
 
-    // Preload all project assets
-    const loadAssets = async () => {
-      for (const asset of manifest.assets) {
-        let rawPath = asset.path.replace(/^\/+/, '');
-        if (rawPath.startsWith('assets/')) {
-          rawPath = `sample_avatar/${rawPath}`;
-        }
-        const assetUrl = `/${rawPath}`;
-        try {
-          await renderer.registerAsset(asset.id, assetUrl);
-        } catch (err) {
-          console.error(`[LiveOutput] Failed to load asset ${asset.name} from ${assetUrl}:`, err);
-        }
-      }
-
-      // Initial render with default parameters and active expression
-      const initialResolved = CharacterResolver.resolve(
-        manifest.layers,
-        {
-          voiceActivity: false,
-          voiceLevel: 0,
-          blink: false,
-          expression: manifest.expressionConfig?.activeExpression || 'neutral',
-        },
-        0,
-        manifest.expressionConfig
-      );
-      renderer.render(initialResolved);
-    };
-
-    loadAssets();
+    // Preload initial assets
+    loadAssets(renderer, manifestRef.current.assets).then(() => {
+      renderCurrentFrame(0);
+    });
 
     // Determine WebSocket URL
     const host = window.location.hostname || '127.0.0.1';
@@ -151,54 +168,49 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
       setConnectionState(state);
     });
 
-    let animFrameId: number | null = null;
-    const isIdleActive = manifest.idleConfig?.enabled && (manifest.idleConfig?.amplitude ?? 0) > 0;
-
     receiver.onFrame((parameters: AvatarParameters, sequence: number) => {
       setLastSeq(sequence);
       latestParamsRef.current = parameters;
 
       // If idle bob is disabled, re-render immediately upon receiving frame
-      if (!isIdleActive && rendererRef.current) {
-        const resolved = CharacterResolver.resolve(
-          manifest.layers,
-          parameters,
-          0,
-          manifest.expressionConfig
-        );
-        rendererRef.current.render(resolved);
+      const currentManifest = manifestRef.current;
+      const isIdleActive = currentManifest.idleConfig?.enabled && (currentManifest.idleConfig?.amplitude ?? 0) > 0;
+      if (!isIdleActive) {
+        renderCurrentFrame(0);
       }
     });
-
-    if (isIdleActive) {
-      const loop = (timeMs: number) => {
-        if (rendererRef.current) {
-          const params = latestParamsRef.current;
-          const isIdle = !params.voiceActivity;
-          const offset = IdleBobEngine.calculateOffset(timeMs, manifest.idleConfig, isIdle);
-          const resolved = CharacterResolver.resolve(
-            manifest.layers,
-            params,
-            offset,
-            manifest.expressionConfig
-          );
-          rendererRef.current.render(resolved);
-        }
-        animFrameId = requestAnimationFrame(loop);
-      };
-      animFrameId = requestAnimationFrame(loop);
-    }
 
     receiver.connect();
 
     return () => {
-      if (animFrameId !== null) {
-        cancelAnimationFrame(animFrameId);
-      }
       receiver.disconnect();
+      receiverRef.current = null;
       rendererRef.current = null;
     };
-  }, [projectId, manifest]);
+  }, [projectId]);
+
+  // Dedicated single render loop for Idle Bob animation
+  useEffect(() => {
+    const isIdleActive = manifest.idleConfig?.enabled && (manifest.idleConfig?.amplitude ?? 0) > 0;
+    if (!isIdleActive) return;
+
+    let animFrameId: number;
+    const loop = (timeMs: number) => {
+      if (rendererRef.current) {
+        const currentManifest = manifestRef.current;
+        const params = latestParamsRef.current;
+        const isIdle = !params.voiceActivity;
+        const offset = IdleBobEngine.calculateOffset(timeMs, currentManifest.idleConfig, isIdle);
+        renderCurrentFrame(offset);
+      }
+      animFrameId = requestAnimationFrame(loop);
+    };
+
+    animFrameId = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(animFrameId);
+    };
+  }, [manifest.idleConfig?.enabled, manifest.idleConfig?.amplitude, manifest.idleConfig?.speed]);
 
   return (
     <div className="live-output-container">

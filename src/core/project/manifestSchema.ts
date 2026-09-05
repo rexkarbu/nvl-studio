@@ -208,6 +208,17 @@ export function validateManifest(data: unknown): ValidationResult {
         return { valid: false, error: `Expression definition at index ${i} has invalid layerOverrides` };
       }
     }
+
+    if (obj.expressionConfig.expressions.length > 0) {
+      const validIds = new Set(obj.expressionConfig.expressions.map((e: any) => e.id));
+      if (!validIds.has(obj.expressionConfig.activeExpression)) {
+        return {
+          valid: false,
+          error: `expressionConfig.activeExpression '${obj.expressionConfig.activeExpression}' does not match any expression definition`,
+        };
+      }
+    }
+
     if (obj.expressionConfig.hotkeys !== undefined) {
       if (!Array.isArray(obj.expressionConfig.hotkeys)) {
         return { valid: false, error: 'expressionConfig.hotkeys must be an array' };

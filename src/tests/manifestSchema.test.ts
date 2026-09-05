@@ -76,4 +76,19 @@ describe('Manifest Schema Validation', () => {
     expect(res.valid).toBe(false);
     expect(res.error).toMatch(/invalid role/);
   });
+
+  it('rejects expressionConfig with activeExpression not present in expressions array', () => {
+    const invalidExpressionConfig = {
+      ...DEFAULT_PROJECT_MANIFEST,
+      expressionConfig: {
+        activeExpression: 'nonexistent-mood',
+        expressions: [
+          { id: 'neutral', name: 'Neutral', layerOverrides: {} },
+        ],
+      },
+    };
+    const res = validateManifest(invalidExpressionConfig);
+    expect(res.valid).toBe(false);
+    expect(res.error).toMatch(/does not match any expression definition/);
+  });
 });

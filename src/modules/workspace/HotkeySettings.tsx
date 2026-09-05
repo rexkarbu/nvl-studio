@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { HotkeyMapping, ExpressionDefinition } from '../../core/project/types';
 import { DEFAULT_HOTKEYS, DEFAULT_EXPRESSIONS } from '../../core/project/defaultProject';
+import { showMessageBox, showConfirmDialog } from './dialogUtils';
 
 interface HotkeySettingsProps {
   hotkeys?: HotkeyMapping[];
@@ -19,7 +20,7 @@ export const HotkeySettings: React.FC<HotkeySettingsProps> = ({
   useEffect(() => {
     if (recordingIndex === null) return;
 
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopPropagation();
 
@@ -44,7 +45,11 @@ export const HotkeySettings: React.FC<HotkeySettingsProps> = ({
       );
 
       if (conflict) {
-        alert(`Hotkey "${hasCtrl ? 'Ctrl+' : ''}${hasShift ? 'Shift+' : ''}${hasAlt ? 'Alt+' : ''}${keyName}" is already mapped to another expression.`);
+        await showMessageBox(
+          'Hotkey Conflict',
+          `Hotkey "${hasCtrl ? 'Ctrl+' : ''}${hasShift ? 'Shift+' : ''}${hasAlt ? 'Alt+' : ''}${keyName}" is already mapped to another expression.`,
+          'warning'
+        );
         setRecordingIndex(null);
         return;
       }
@@ -68,8 +73,12 @@ export const HotkeySettings: React.FC<HotkeySettingsProps> = ({
     };
   }, [recordingIndex, hotkeys, onUpdateHotkeys]);
 
-  const handleResetDefaults = () => {
-    if (confirm('Reset hotkey mappings to default (F1-F4)?')) {
+  const handleResetDefaults = async () => {
+    const confirmed = await showConfirmDialog(
+      'Reset Hotkeys',
+      'Reset hotkey mappings to default (F1-F4)?'
+    );
+    if (confirmed) {
       onUpdateHotkeys([...DEFAULT_HOTKEYS]);
     }
   };

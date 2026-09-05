@@ -97,7 +97,7 @@ export class CharacterResolver {
             if (override.zIndex !== undefined) item.zIndex = override.zIndex;
             if (override.assetId !== undefined) item.assetId = override.assetId;
 
-            // Update layer snapshot reference non-destructively; NEVER mutate role
+            // Create a new layer snapshot with overrides applied; preserve role explicitly
             item.layer = {
               ...item.layer,
               ...override,
