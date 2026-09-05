@@ -1,0 +1,5 @@
+allowBuilds:
+  electron: true
+  electron-winstaller: true
+  esbuild: true
+storeDir: D:/setup/pnpm-store
