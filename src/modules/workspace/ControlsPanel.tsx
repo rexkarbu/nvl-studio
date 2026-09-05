@@ -3,10 +3,13 @@ import { ParameterStore } from '../../core/parameters/ParameterStore';
 import { TalkSimulator } from '../../core/audio/TalkSimulator';
 import { BlinkScheduler } from '../../core/animation/BlinkScheduler';
 import { AudioVAD } from '../../core/audio/AudioVAD';
-import { CharacterLayer, ProjectManifest, SemanticLayerRole, IdleConfig, BlinkSettings } from '../../core/project/types';
+import { CharacterLayer, ProjectManifest, SemanticLayerRole, IdleConfig, BlinkSettings, ExpressionConfig } from '../../core/project/types';
 import { validateRoleMapping } from '../../core/project/roleAssignment';
 import { AnimatorConfigPanel } from './AnimatorConfigPanel';
 import { AudioMeter } from './AudioMeter';
+import { ExpressionPanel } from './ExpressionPanel';
+import { HotkeySettings } from './HotkeySettings';
+import { DEFAULT_EXPRESSIONS, DEFAULT_HOTKEYS } from '../../core/project/defaultProject';
 
 interface ControlsPanelProps {
   store: ParameterStore;
@@ -18,6 +21,8 @@ interface ControlsPanelProps {
   onUpdateIdleConfig?: (idleConfig: IdleConfig) => void;
   onUpdateBlinkConfig?: (blinkConfig: BlinkSettings) => void;
   onUpdateAudioConfig?: (audioConfig: ProjectManifest['audioConfig']) => void;
+  onSelectExpression?: (expressionId: string) => void;
+  onUpdateExpressionConfig?: (config: ExpressionConfig) => void;
 }
 
 export const ControlsPanel: React.FC<ControlsPanelProps> = ({
@@ -30,8 +35,10 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
   onUpdateIdleConfig,
   onUpdateBlinkConfig,
   onUpdateAudioConfig,
+  onSelectExpression,
+  onUpdateExpressionConfig,
 }) => {
-  const [panelTab, setPanelTab] = useState<'animator' | 'quick'>('animator');
+  const [panelTab, setPanelTab] = useState<'animator' | 'expressions' | 'quick'>('animator');
   const [selectedLayerId, setSelectedLayerId] = useState<string>('layer-mouth-closed');
   const [isTalking, setIsTalking] = useState<boolean>(false);
   const [isAutoBlink, setIsAutoBlink] = useState<boolean>(true);
@@ -40,11 +47,17 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
   const [sensitivity, setSensitivity] = useState<number>(audioVAD.getConfig().sensitivity);
   const [releaseDelay, setReleaseDelay] = useState<number>(audioVAD.getConfig().releaseDelayMs);
   const [micError, setMicError] = useState<string | null>(null);
+  const [activeExpression, setActiveExpression] = useState<string>(
+    manifest?.expressionConfig?.activeExpression || 'neutral'
+  );
 
   // Sync state with store
   useEffect(() => {
     const unsubscribe = store.subscribe((params) => {
       setIsTalking(params.voiceActivity);
+      if (params.expression) {
+        setActiveExpression(params.expression);
+      }
     });
 
     // Start auto-blink by default
@@ -149,13 +162,19 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
 
   return (
     <section className="controls-panel">
-      {/* Controls / Animator Sub-tabs */}
+      {/* Controls / Animator / Expressions Sub-tabs */}
       <div className="sidebar-tab-bar" style={{ marginBottom: '12px' }}>
         <button
           className={`sidebar-tab-btn ${panelTab === 'animator' ? 'active' : ''}`}
           onClick={() => setPanelTab('animator')}
         >
           ⚙️ Animator
+        </button>
+        <button
+          className={`sidebar-tab-btn ${panelTab === 'expressions' ? 'active' : ''}`}
+          onClick={() => setPanelTab('expressions')}
+        >
+          🎭 Expressions
         </button>
         <button
           className={`sidebar-tab-btn ${panelTab === 'quick' ? 'active' : ''}`}
@@ -165,7 +184,7 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
         </button>
       </div>
 
-      {panelTab === 'animator' && manifest ? (
+      {panelTab === 'animator' && manifest && (
         <AnimatorConfigPanel
           store={store}
           blinkScheduler={blinkScheduler}
@@ -175,8 +194,67 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
           onUpdateBlinkConfig={handleUpdateBlink}
           onUpdateAudioConfig={handleUpdateAudio}
         />
-      ) : (
+      )}
+
+      {panelTab === 'expressions' && manifest && (
+        <div className="expressions-tab-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <ExpressionPanel
+            expressionConfig={manifest.expressionConfig}
+            layers={manifest.layers}
+            onSelectExpression={onSelectExpression || (() => {})}
+            onUpdateExpressionConfig={onUpdateExpressionConfig || (() => {})}
+          />
+          <HotkeySettings
+            hotkeys={manifest.expressionConfig?.hotkeys || DEFAULT_HOTKEYS}
+            expressions={manifest.expressionConfig?.expressions || DEFAULT_EXPRESSIONS}
+            onUpdateHotkeys={(newHotkeys) => {
+              if (onUpdateExpressionConfig) {
+                const currentConfig = manifest.expressionConfig || {
+                  activeExpression: 'neutral',
+                  expressions: DEFAULT_EXPRESSIONS,
+                  hotkeys: DEFAULT_HOTKEYS,
+                };
+                onUpdateExpressionConfig({
+                  ...currentConfig,
+                  hotkeys: newHotkeys,
+                });
+              }
+            }}
+          />
+        </div>
+      )}
+
+      {panelTab === 'quick' && (
         <>
+          {/* Quick Expression Switcher */}
+          <div className="control-card">
+            <div className="card-header">
+              <span className="card-title">Active Expression</span>
+              <span className="card-sub">{activeExpression}</span>
+            </div>
+            <div className="card-content">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {(manifest?.expressionConfig?.expressions || DEFAULT_EXPRESSIONS).map((expr) => {
+                  const isActive = activeExpression === expr.id;
+                  return (
+                    <button
+                      key={expr.id}
+                      className={`action-btn ${isActive ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ flex: '1 1 calc(50% - 6px)', minWidth: '80px', fontSize: '12px' }}
+                      onClick={() => {
+                        if (onSelectExpression) {
+                          onSelectExpression(expr.id);
+                        }
+                      }}
+                    >
+                      {expr.name} {isActive ? '✓' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
           {/* 0. Live Role Mapping Status */}
           {roleValidation && (
             <div className="control-card role-status-card">

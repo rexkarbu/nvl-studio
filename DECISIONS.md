@@ -178,5 +178,31 @@ Step 11 merupakan penutup Stage B (Gate 2: MVP Hardening & Windows Release). Fok
    - Tampilan pembuka ramah pemula saat belum ada proyek yang dibuka, dengan 3 kartu aksi utama: "Create New Project", "Open Existing Project", dan "Open Sample Avatar" (Chibi Cat).
    - Loading overlay dengan spinner animasi selama operasi I/O proyek, serta bridge pesan native dialog via `dialog.showMessageBox`.
 
+---
 
+## ADR 009: Expressions Architecture, Layer Overrides Order & In-App Hotkeys
 
+### Status
+Accepted
+
+### Konteks
+Step 12 mengawali Stage C dengan menambahkan sistem ekspresi karakter dan pemicu pintasan keyboard (hotkeys). Karakter PNGtuber memerlukan pergantian emosi (misal: neutral, happy, angry, sad, shock, embarrassed) saat streaming tanpa mengganggu animasi realtime yang sedang berjalan (Talking mouth flap, Auto-Blinking, dan Idle Bobbing).
+
+### Keputusan Arsitektur
+1. **Urutan Evaluasi Deterministik di CharacterResolver**:
+   - Resolver mengeksekusi pipeline resolusi layer dengan urutan ketat:
+     1. Evaluasi role-based visibility (`talkState` menentukan `mouth_open`/`mouth_closed`, `blinkState` menentukan `eye_open`/`eye_closed`).
+     2. Terapkan idle bob sinusoidal offset pada layer ber-role `body` saat avatar hening.
+     3. Terapkan expression `layerOverrides` untuk ekspresi yang aktif. Override bersifat aditif dan selektif: hanya mengubah properti yang didefinisikan (`x`, `y`, `scaleX`, `scaleY`, `rotation`, `opacity`, `visible`), menjaga offset bob pada koordinat `y`, dan tidak pernah menghapus properti lain atau memutasi `layer.role`.
+     4. Kembalikan `activeLayers`.
+2. **Renderer-Level Hotkeys (Bukan Electron globalShortcut)**:
+   - Pintasan keyboard dikelola di renderer window via `HotkeyManager` (`window.addEventListener('keydown')`).
+   - Keputusan ini menghindari penggunaan `globalShortcut` sistem operasi agar hotkey NVL tidak membajak tombol game streamer atau pintasan scene switcher OBS Studio.
+   - Pemicu hotkey secara otomatis ditekan (suppressed) saat pengguna sedang mengetik di input form, textarea, select box, atau elemen `contenteditable`.
+3. **Dynamic Manifest Resolution untuk OBS Browser Source (`/api/project`)**:
+   - Mengatasi limitasi OBS Browser Source yang sebelumnya menggunakan `DEFAULT_PROJECT_MANIFEST`. Embedded server `localServer.ts` mengekspos endpoint HTTP `GET /api/project` yang menyajikan file `project.nvl` yang sedang aktif di editor.
+   - `LiveOutputApp.tsx` memuat manifest ini saat startup sehingga seluruh definisi ekspresi dan layer override dapat dirender secara 100% identik antara Canvas Preview dan OBS Browser Source.
+4. **Zero-Protocol-Breaking Parameter Synchronization**:
+   - Pergantian ekspresi ditransmisikan ke WebSocket OBS melalui field `AvatarParameters.expression` yang sudah ada sejak Step 1. Tidak diperlukan modifikasi pada skema payload live framing biner/JSON.
+5. **Skema Manifest Terbuka & Kompatibel**:
+   - Menambahkan field opsional `expressionConfig?: ExpressionConfig` pada `ProjectManifest`. Proyek versi sebelumnya tanpa konfigurasi ekspresi tetap valid dan otomatis menggunakan fallback ekspresi standar (`neutral`, `happy`, `angry`, `sad`, `shock`, `embarrassed`).

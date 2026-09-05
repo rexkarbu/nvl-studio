@@ -58,7 +58,12 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       }
 
       // Initial render
-      const resolved = CharacterResolver.resolve(manifest.layers, store.getSnapshot());
+      const resolved = CharacterResolver.resolve(
+        manifest.layers,
+        store.getSnapshot(),
+        0,
+        manifest.expressionConfig
+      );
       renderer.render(resolved);
     };
 
@@ -68,7 +73,12 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
     const unsubscribe = store.subscribe((params) => {
       setCurrentParams(params);
       if (rendererRef.current) {
-        const resolved = CharacterResolver.resolve(manifest.layers, params);
+        const resolved = CharacterResolver.resolve(
+          manifest.layers,
+          params,
+          0,
+          manifest.expressionConfig
+        );
         rendererRef.current.render(resolved);
       }
     });

@@ -182,6 +182,39 @@ export function validateManifest(data: unknown): ValidationResult {
     return { valid: false, error: 'outputConfig.preferredPort must be a number' };
   }
 
+  // 11. expressionConfig (optional)
+  if (obj.expressionConfig !== undefined) {
+    if (!obj.expressionConfig || typeof obj.expressionConfig !== 'object') {
+      return { valid: false, error: 'Invalid expressionConfig object' };
+    }
+    if (typeof obj.expressionConfig.activeExpression !== 'string') {
+      return { valid: false, error: 'expressionConfig.activeExpression must be a string' };
+    }
+    if (!Array.isArray(obj.expressionConfig.expressions)) {
+      return { valid: false, error: 'expressionConfig.expressions must be an array' };
+    }
+    for (let i = 0; i < obj.expressionConfig.expressions.length; i++) {
+      const exp = obj.expressionConfig.expressions[i];
+      if (!exp || typeof exp !== 'object') {
+        return { valid: false, error: `Invalid expression definition at index ${i}` };
+      }
+      if (typeof exp.id !== 'string' || exp.id.trim() === '') {
+        return { valid: false, error: `Expression definition at index ${i} has invalid id` };
+      }
+      if (typeof exp.name !== 'string' || exp.name.trim() === '') {
+        return { valid: false, error: `Expression definition at index ${i} has invalid name` };
+      }
+      if (!exp.layerOverrides || typeof exp.layerOverrides !== 'object') {
+        return { valid: false, error: `Expression definition at index ${i} has invalid layerOverrides` };
+      }
+    }
+    if (obj.expressionConfig.hotkeys !== undefined) {
+      if (!Array.isArray(obj.expressionConfig.hotkeys)) {
+        return { valid: false, error: 'expressionConfig.hotkeys must be an array' };
+      }
+    }
+  }
+
   return { valid: true, manifest: obj as ProjectManifest };
 }
 

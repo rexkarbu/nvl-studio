@@ -81,8 +81,13 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       if (!rendererRef.current) return;
       const renderer = rendererRef.current;
 
-      // 1. Render character layers with idle bob offset
-      const resolved = CharacterResolver.resolve(manifest.layers, store.getSnapshot(), idleBobOffset);
+      // 1. Render character layers with idle bob offset and active expression overrides
+      const resolved = CharacterResolver.resolve(
+        manifest.layers,
+        store.getSnapshot(),
+        idleBobOffset,
+        manifest.expressionConfig
+      );
       renderer.render(resolved);
 
       // 2. Render selection overlay if a layer is selected

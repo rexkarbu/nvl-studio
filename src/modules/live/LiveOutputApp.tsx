@@ -10,9 +10,13 @@ import { IdleBobEngine } from '../../core/animation/IdleBobEngine';
 
 interface LiveOutputAppProps {
   projectId?: string;
+  initialManifest?: ProjectManifest;
 }
 
-export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({ projectId: propProjectId }) => {
+export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
+  projectId: propProjectId,
+  initialManifest,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<CanvasAvatarRenderer | null>(null);
   const receiverRef = useRef<LiveReceiver | null>(null);
@@ -22,8 +26,38 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({ projectId: propPro
     blink: false,
   });
 
+  const [manifest, setManifest] = useState<ProjectManifest>(initialManifest || DEFAULT_PROJECT_MANIFEST);
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
   const [lastSeq, setLastSeq] = useState<number>(0);
+
+  // Sync prop changes if initialManifest is updated externally
+  useEffect(() => {
+    if (initialManifest) {
+      setManifest(initialManifest);
+    }
+  }, [initialManifest]);
+
+  // Fetch project manifest from local server (enables OBS Browser Source to load real project data)
+  useEffect(() => {
+    let isCancelled = false;
+    const fetchProjectManifest = async () => {
+      try {
+        const res = await fetch('/api/project');
+        if (res.ok) {
+          const data = await res.json();
+          if (!isCancelled && data && data.layers) {
+            setManifest(data);
+          }
+        }
+      } catch {
+        // Fall back to initialManifest / DEFAULT_PROJECT_MANIFEST
+      }
+    };
+    fetchProjectManifest();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   // Extract projectId from props, pathname, or hash
   const getActiveProjectId = (): string => {
@@ -59,8 +93,6 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({ projectId: propPro
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    const manifest: ProjectManifest = DEFAULT_PROJECT_MANIFEST;
-
     // Initialize Canvas 2D Renderer
     const renderer = new CanvasAvatarRenderer({
       canvas: canvasRef.current,
@@ -84,12 +116,18 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({ projectId: propPro
         }
       }
 
-      // Initial render with default parameters
-      const initialResolved = CharacterResolver.resolve(manifest.layers, {
-        voiceActivity: false,
-        voiceLevel: 0,
-        blink: false,
-      });
+      // Initial render with default parameters and active expression
+      const initialResolved = CharacterResolver.resolve(
+        manifest.layers,
+        {
+          voiceActivity: false,
+          voiceLevel: 0,
+          blink: false,
+          expression: manifest.expressionConfig?.activeExpression || 'neutral',
+        },
+        0,
+        manifest.expressionConfig
+      );
       renderer.render(initialResolved);
     };
 
@@ -122,7 +160,12 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({ projectId: propPro
 
       // If idle bob is disabled, re-render immediately upon receiving frame
       if (!isIdleActive && rendererRef.current) {
-        const resolved = CharacterResolver.resolve(manifest.layers, parameters, 0);
+        const resolved = CharacterResolver.resolve(
+          manifest.layers,
+          parameters,
+          0,
+          manifest.expressionConfig
+        );
         rendererRef.current.render(resolved);
       }
     });
@@ -133,7 +176,12 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({ projectId: propPro
           const params = latestParamsRef.current;
           const isIdle = !params.voiceActivity;
           const offset = IdleBobEngine.calculateOffset(timeMs, manifest.idleConfig, isIdle);
-          const resolved = CharacterResolver.resolve(manifest.layers, params, offset);
+          const resolved = CharacterResolver.resolve(
+            manifest.layers,
+            params,
+            offset,
+            manifest.expressionConfig
+          );
           rendererRef.current.render(resolved);
         }
         animFrameId = requestAnimationFrame(loop);
@@ -150,7 +198,7 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({ projectId: propPro
       receiver.disconnect();
       rendererRef.current = null;
     };
-  }, [projectId]);
+  }, [projectId, manifest]);
 
   return (
     <div className="live-output-container">

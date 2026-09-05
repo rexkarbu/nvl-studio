@@ -205,6 +205,36 @@ export class LocalServer {
       return;
     }
 
+    // Serve current project manifest (used by OBS Browser Source / LiveOutputApp)
+    if (cleanUrl === '/api/project' || cleanUrl === '/project.nvl' || cleanUrl.startsWith('/api/project/')) {
+      let projectFile: string | null = null;
+      if (this.projectDir) {
+        const candidate = path.join(this.projectDir, 'project.nvl');
+        if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+          projectFile = candidate;
+        }
+      }
+      if (!projectFile) {
+        const sampleCandidate = path.resolve(process.cwd(), 'sample_avatar/project.nvl');
+        if (fs.existsSync(sampleCandidate) && fs.statSync(sampleCandidate).isFile()) {
+          projectFile = sampleCandidate;
+        }
+      }
+      if (projectFile && fs.existsSync(projectFile)) {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        });
+        fs.createReadStream(projectFile).pipe(res);
+        return;
+      } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Project manifest not found' }));
+        return;
+      }
+    }
+
     // Determine if this is a static asset request (has file extension or contains /assets/ or /sample_avatar/)
     const hasExtension = path.extname(cleanUrl) !== '';
     const isAssetPath = cleanUrl.includes('/assets/') || cleanUrl.includes('/sample_avatar/');

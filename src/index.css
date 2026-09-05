@@ -1547,4 +1547,93 @@ body {
   }
 }
 
+/* ==========================================================================
+   Expressions & Hotkeys Styles (STEP 12)
+   ========================================================================== */
+
+.expression-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.expression-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.expression-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color, #2e2c40);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.expression-card:hover {
+  background: rgba(127, 90, 240, 0.08);
+  border-color: rgba(127, 90, 240, 0.4);
+}
+
+.expression-card.active {
+  background: rgba(127, 90, 240, 0.15);
+  border-color: var(--accent-primary, #7f5af0);
+  box-shadow: 0 0 12px rgba(127, 90, 240, 0.2);
+}
+
+.expression-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.expression-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main, #fffffe);
+}
+
+.expression-card-meta {
+  font-size: 10px;
+  color: var(--text-muted, #94a1b2);
+}
+
+.badge-tag.active-badge {
+  background: var(--accent-primary, #7f5af0);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.hotkey-key-pill {
+  transition: all 0.15s ease;
+}
+
+.hotkey-key-pill:hover {
+  border-color: var(--accent-primary, #7f5af0) !important;
+  transform: translateY(-1px);
+}
+
+.hotkey-key-pill.recording {
+  animation: pulse-recording 1.2s infinite;
+}
+
+@keyframes pulse-recording {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(127, 90, 240, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(127, 90, 240, 0);
+  }
+}
+
+
 

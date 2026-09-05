@@ -4,8 +4,9 @@ import { TalkSimulator } from './core/audio/TalkSimulator';
 import { BlinkScheduler } from './core/animation/BlinkScheduler';
 import { AudioVAD } from './core/audio/AudioVAD';
 import { LiveBroadcaster } from './core/sync/LiveBroadcaster';
-import { DEFAULT_PROJECT_MANIFEST } from './core/project/defaultProject';
-import { CharacterLayer, ProjectManifest, IdleConfig, BlinkSettings } from './core/project/types';
+import { HotkeyManager } from './core/input/HotkeyManager';
+import { DEFAULT_PROJECT_MANIFEST, DEFAULT_EXPRESSIONS, DEFAULT_HOTKEYS } from './core/project/defaultProject';
+import { CharacterLayer, ProjectManifest, IdleConfig, BlinkSettings, ExpressionConfig } from './core/project/types';
 
 import { TopMenuBar } from './modules/workspace/TopMenuBar';
 import { LayerPanel } from './modules/workspace/LayerPanel';
@@ -63,6 +64,7 @@ export const App: React.FC = () => {
   const blinkRef = useRef<BlinkScheduler>(new BlinkScheduler(storeRef.current));
   const vadRef = useRef<AudioVAD>(new AudioVAD(storeRef.current));
   const broadcasterRef = useRef<LiveBroadcaster | null>(null);
+  const hotkeyManagerRef = useRef<HotkeyManager | null>(null);
 
   // Native message dialog helper
   const showMessage = useCallback(
@@ -471,6 +473,63 @@ export const App: React.FC = () => {
     [markDirty]
   );
 
+  const handleSetExpression = useCallback((expressionId: string) => {
+    // 1. Update ParameterStore so CanvasStage, LiveBroadcaster, and LiveOutputApp update
+    storeRef.current.update({ expression: expressionId });
+
+    // 2. Sync to activeExpression in manifest
+    setManifest((prev) => {
+      const currentExprConfig = prev.expressionConfig || {
+        activeExpression: 'neutral',
+        expressions: DEFAULT_EXPRESSIONS,
+        hotkeys: DEFAULT_HOTKEYS,
+      };
+      if (currentExprConfig.activeExpression === expressionId) return prev;
+      return {
+        ...prev,
+        expressionConfig: {
+          ...currentExprConfig,
+          activeExpression: expressionId,
+        },
+      };
+    });
+  }, []);
+
+  const handleUpdateExpressionConfig = useCallback(
+    (expressionConfig: ExpressionConfig) => {
+      setManifest((prev) => ({
+        ...prev,
+        expressionConfig,
+        metadata: { ...prev.metadata, updatedAt: new Date().toISOString() },
+      }));
+      if (expressionConfig.activeExpression) {
+        storeRef.current.update({ expression: expressionConfig.activeExpression });
+      }
+      if (hotkeyManagerRef.current && expressionConfig.hotkeys) {
+        hotkeyManagerRef.current.setMappings(expressionConfig.hotkeys);
+      }
+      markDirty();
+    },
+    [markDirty]
+  );
+
+  // Hotkey listener for expressions
+  useEffect(() => {
+    if (isLiveView) return;
+
+    const hotkeys = manifest.expressionConfig?.hotkeys || DEFAULT_HOTKEYS;
+    const manager = new HotkeyManager((expressionId: string) => {
+      handleSetExpression(expressionId);
+    }, hotkeys);
+    manager.start();
+    hotkeyManagerRef.current = manager;
+
+    return () => {
+      manager.stop();
+      hotkeyManagerRef.current = null;
+    };
+  }, [isLiveView, manifest.expressionConfig?.hotkeys, handleSetExpression]);
+
   const selectedLayer = manifest.layers.find((l) => l.id === selectedLayerId) || null;
   const roleValidation = validateRoleMapping(manifest.layers);
 
@@ -503,7 +562,7 @@ export const App: React.FC = () => {
 
   // If this is the Live Output window / OBS Browser Source, render only the transparent canvas
   if (isLiveView) {
-    return <LiveOutputApp projectId={manifest.projectId} />;
+    return <LiveOutputApp projectId={manifest.projectId} initialManifest={manifest} />;
   }
 
   return (
@@ -603,6 +662,8 @@ export const App: React.FC = () => {
               onUpdateIdleConfig={handleUpdateIdleConfig}
               onUpdateBlinkConfig={handleUpdateBlinkConfig}
               onUpdateAudioConfig={handleUpdateAudioConfig}
+              onSelectExpression={handleSetExpression}
+              onUpdateExpressionConfig={handleUpdateExpressionConfig}
             />
           )}
         </aside>

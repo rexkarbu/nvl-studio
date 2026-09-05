@@ -45,6 +45,30 @@ export interface BlinkSettings {
   durationMs: number;    // e.g. 150ms
 }
 
+export interface HotkeyMapping {
+  expressionId: string;
+  key: string; // e.g. 'F1', 'F2', 'Digit1'
+  ctrl?: boolean;
+  shift?: boolean;
+  alt?: boolean;
+}
+
+export interface ExpressionDefinition {
+  id: string;
+  name: string;
+  /** Layer overrides applied when this expression is active */
+  layerOverrides: Record<string, Partial<CharacterLayer>>;
+}
+
+export interface ExpressionConfig {
+  /** Currently active expression identifier */
+  activeExpression: string;
+  /** Available expressions for this avatar */
+  expressions: ExpressionDefinition[];
+  /** Global hotkey mappings */
+  hotkeys?: HotkeyMapping[];
+}
+
 export interface ProjectManifest {
   schemaVersion: 1;
   projectId: string;
@@ -63,6 +87,7 @@ export interface ProjectManifest {
   layers: CharacterLayer[];
   idleConfig?: IdleConfig;
   blinkConfig?: BlinkSettings;
+  expressionConfig?: ExpressionConfig;
   audioConfig: {
     threshold: number;      // 0.0 - 1.0 (default: 0.15)
     sensitivity: number;    // 1.0 - 5.0 (default: 2.0)

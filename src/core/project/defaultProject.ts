@@ -134,6 +134,57 @@ export const DEFAULT_PROJECT_MANIFEST: Readonly<ProjectManifest> = {
     maxIntervalMs: 6000,
     durationMs: 150,
   },
+  expressionConfig: {
+    activeExpression: 'neutral',
+    expressions: [
+      {
+        id: 'neutral',
+        name: 'Neutral',
+        layerOverrides: {},
+      },
+      {
+        id: 'happy',
+        name: 'Happy',
+        layerOverrides: {
+          'layer-eye-open': { scaleX: 1.05, scaleY: 1.05 },
+        },
+      },
+      {
+        id: 'angry',
+        name: 'Angry',
+        layerOverrides: {
+          'layer-eye-open': { rotation: -3 },
+        },
+      },
+      {
+        id: 'sad',
+        name: 'Sad',
+        layerOverrides: {
+          'layer-eye-open': { y: 546 },
+        },
+      },
+      {
+        id: 'shock',
+        name: 'Shock',
+        layerOverrides: {
+          'layer-eye-open': { scaleX: 1.2, scaleY: 1.2 },
+        },
+      },
+      {
+        id: 'embarrassed',
+        name: 'Embarrassed',
+        layerOverrides: {
+          'layer-body': { opacity: 0.92 },
+        },
+      },
+    ],
+    hotkeys: [
+      { expressionId: 'neutral', key: 'F1' },
+      { expressionId: 'happy', key: 'F2' },
+      { expressionId: 'angry', key: 'F3' },
+      { expressionId: 'sad', key: 'F4' },
+    ],
+  },
   audioConfig: {
     threshold: 0.15,
     sensitivity: 2.0,
@@ -144,3 +195,6 @@ export const DEFAULT_PROJECT_MANIFEST: Readonly<ProjectManifest> = {
     transparent: true,
   },
 };
+
+export const DEFAULT_EXPRESSIONS = DEFAULT_PROJECT_MANIFEST.expressionConfig!.expressions;
+export const DEFAULT_HOTKEYS = DEFAULT_PROJECT_MANIFEST.expressionConfig!.hotkeys!;
