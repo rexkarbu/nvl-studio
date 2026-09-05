@@ -54,10 +54,10 @@ describe('LocalServer End-to-End Integration (HTTP & WebSocket)', () => {
     expect(res.html).toContain('background: transparent !important');
   });
 
-  it('serves sample avatar PNG asset with image/png content type', async () => {
+  it.each(['body', 'mouth-small', 'mouth-wide'])('serves packaged sample %s PNG with image/png content type', async (assetName) => {
     const res = await new Promise<{ statusCode?: number; contentType?: string }>((resolve, reject) => {
       http
-        .get(`http://127.0.0.1:${port}/sample_avatar/assets/body.png`, (res) => {
+        .get(`http://127.0.0.1:${port}/sample_avatar/assets/${assetName}.png`, (res) => {
           resolve({
             statusCode: res.statusCode,
             contentType: res.headers['content-type'],

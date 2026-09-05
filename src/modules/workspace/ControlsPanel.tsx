@@ -417,8 +417,9 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
                   <input
                     type="range"
                     min="0.01"
-                    max="0.40"
+                    max="0.50"
                     step="0.01"
+                    aria-label="Voice threshold"
                     value={threshold}
                     onChange={handleThresholdChange}
                   />
@@ -431,6 +432,7 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
                     min="1.0"
                     max="10.0"
                     step="0.5"
+                    aria-label="Microphone sensitivity"
                     value={sensitivity}
                     onChange={handleSensitivityChange}
                   />
@@ -443,6 +445,7 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
                     min="50"
                     max="1000"
                     step="25"
+                    aria-label="Speaking release delay"
                     value={releaseDelay}
                     onChange={handleReleaseDelayChange}
                   />

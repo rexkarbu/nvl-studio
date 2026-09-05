@@ -465,6 +465,7 @@ export const AnimatorConfigPanel: React.FC<AnimatorConfigPanelProps> = ({
                 min="0.01"
                 max="0.50"
                 step="0.01"
+                aria-label="Voice threshold"
                 value={audioConfig.threshold}
                 onChange={(e) => {
                   const val = Number(e.target.value);
@@ -481,8 +482,9 @@ export const AnimatorConfigPanel: React.FC<AnimatorConfigPanelProps> = ({
               <input
                 type="range"
                 min="1.0"
-                max="5.0"
-                step="0.2"
+                max="10.0"
+                step="0.5"
+                aria-label="Microphone sensitivity"
                 value={audioConfig.sensitivity}
                 onChange={(e) => {
                   const val = Number(e.target.value);
@@ -501,6 +503,7 @@ export const AnimatorConfigPanel: React.FC<AnimatorConfigPanelProps> = ({
                 min="50"
                 max="1000"
                 step="25"
+                aria-label="Speaking release delay"
                 value={audioConfig.releaseDelayMs}
                 onChange={(e) => {
                   const val = Number(e.target.value);

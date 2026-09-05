@@ -12,7 +12,7 @@ import {
   zoomAroundScreenPoint,
 } from './canvasNavigation';
 import { showConfirmDialog } from './dialogUtils';
-import { resolveAssetUrl } from '../../core/project/pathResolver';
+import { resolveAssetUrl } from '../../core/project/assetUrl';
 import {
   findTopmostLayerAt,
   hitTestHandles,

@@ -4,7 +4,7 @@ import { CharacterResolver } from '../../core/resolver/CharacterResolver';
 import { CanvasAvatarRenderer } from '../../core/renderer/CanvasAvatarRenderer';
 import { ProjectManifest } from '../../core/project/types';
 import { AvatarParameters } from '../../core/parameters/types';
-import { resolveAssetUrl } from '../../core/project/pathResolver';
+import { resolveAssetUrl } from '../../core/project/assetUrl';
 
 interface PreviewPanelProps {
   manifest: ProjectManifest;

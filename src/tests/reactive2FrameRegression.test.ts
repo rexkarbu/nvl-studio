@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { resolveAssetUrl } from '../core/project/pathResolver';
+import { resolveAssetUrl } from '../core/project/assetUrl';
 import { CharacterResolver } from '../core/resolver/CharacterResolver';
 import { AudioVAD } from '../core/audio/AudioVAD';
 import { ParameterStore } from '../core/parameters/ParameterStore';
-import { CharacterLayer, MouthConfig, SemanticLayerRole } from '../core/project/types';
+import { CharacterLayer, MouthConfig } from '../core/project/types';
 import { DEFAULT_MOUTH_THRESHOLDS } from '../core/audio/MouthShapeMapper';
 import { AvatarParameters } from '../core/parameters/types';
+import { applyReactive2FrameLayers } from '../core/project/reactive2Frame';
+import { CanvasAvatarRenderer } from '../core/renderer/CanvasAvatarRenderer';
+import { createCanvasHarness } from './helpers/canvasHarness';
 
 describe('2-Frame Reactive PNGtuber Hardening & Regression Suite', () => {
   // =========================================================================
@@ -93,8 +96,8 @@ describe('2-Frame Reactive PNGtuber Hardening & Regression Suite', () => {
     beforeEach(() => {
       mockTime = 1000;
       perfNowMock = vi.spyOn(performance, 'now').mockImplementation(() => mockTime);
-      vi.stubGlobal('requestAnimationFrame', vi.fn((fn: Function) => setTimeout(fn, 16)));
-      vi.stubGlobal('cancelAnimationFrame', vi.fn((id: any) => clearTimeout(id)));
+      vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1));
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
     });
 
     afterEach(() => {
@@ -102,11 +105,10 @@ describe('2-Frame Reactive PNGtuber Hardening & Regression Suite', () => {
       vi.unstubAllGlobals();
     });
 
-    it('holds mouth_open and 100% brightness at delay-1, switches to mouth_closed and idle dimming at delay and delay+1', () => {
+    it.each([50, 200, 1000])('holds the talking image and renderer brightness until the %i ms deadline', (releaseDelay) => {
       const store = new ParameterStore();
       const vad = new AudioVAD(store);
 
-      const releaseDelay = 300; // 300ms release delay
       vad.updateConfig({
         threshold: 0.1,
         sensitivity: 1.0,
@@ -163,6 +165,20 @@ describe('2-Frame Reactive PNGtuber Hardening & Regression Suite', () => {
         reactive2Frame: true,
       };
 
+      const { context, draws } = createCanvasHarness();
+      const canvas = { getContext: () => context } as unknown as HTMLCanvasElement;
+      const renderer = new CanvasAvatarRenderer({ canvas });
+      const idleImage = { complete: true, naturalWidth: 10, naturalHeight: 10 } as HTMLImageElement;
+      const talkImage = { complete: true, naturalWidth: 10, naturalHeight: 10 } as HTMLImageElement;
+      renderer.setAsset('asset-idle', idleImage);
+      renderer.setAsset('asset-talk', talkImage);
+      const idleConfig = { enabled: false, amplitude: 8, speed: 1.5, dimWhenSilent: true, idleBrightness: 0.4 };
+      const checkRendered = (resolved: ReturnType<typeof CharacterResolver.resolve>, talking: boolean) => {
+        renderer.render(resolved, idleConfig);
+        expect(draws.at(-1)).toEqual({ image: talking ? talkImage : idleImage, filter: talking ? 'none' : 'brightness(40%)' });
+        expect(context.filter).toBe('none');
+      };
+
       // Tick 1: User speaks at t = 1000ms with energy > threshold (0.5)
       mockTime = 1000;
       audioBuffer.fill(0.5);
@@ -174,9 +190,10 @@ describe('2-Frame Reactive PNGtuber Hardening & Regression Suite', () => {
       const resolved1 = CharacterResolver.resolve(layers, snapshot1, 0, undefined, mouthConfig);
       expect(resolved1.activeLayers[0].layer.role).toBe('mouth_open');
       expect(resolved1.voiceState).toBe('talking'); // 100% brightness
+      checkRendered(resolved1, true);
 
       // Tick 2: User stops speaking (silence). Check at t = 1000 + releaseDelay - 1 (delay - 1)
-      mockTime = 1000 + releaseDelay - 1; // 1299ms
+      mockTime = 1000 + releaseDelay - 1;
       audioBuffer.fill(0.0);
       (vad as any).loop();
 
@@ -187,9 +204,10 @@ describe('2-Frame Reactive PNGtuber Hardening & Regression Suite', () => {
       // At delay - 1: Talking frame held, brightness is 100% (voiceState === 'talking')
       expect(resolvedDelayMinus1.activeLayers[0].layer.role).toBe('mouth_open');
       expect(resolvedDelayMinus1.voiceState).toBe('talking');
+      checkRendered(resolvedDelayMinus1, true);
 
       // Tick 3: Exactly at t = 1000 + releaseDelay (exact delay)
-      mockTime = 1000 + releaseDelay; // 1300ms
+      mockTime = 1000 + releaseDelay;
       audioBuffer.fill(0.0);
       (vad as any).loop();
 
@@ -200,9 +218,10 @@ describe('2-Frame Reactive PNGtuber Hardening & Regression Suite', () => {
       // At exact delay: Frame switched to mouth_closed, brightness switched to idle (voiceState === 'idle')
       expect(resolvedExactDelay.activeLayers[0].layer.role).toBe('mouth_closed');
       expect(resolvedExactDelay.voiceState).toBe('idle');
+      checkRendered(resolvedExactDelay, false);
 
       // Tick 4: After delay at t = 1000 + releaseDelay + 1 (delay + 1)
-      mockTime = 1000 + releaseDelay + 1; // 1301ms
+      mockTime = 1000 + releaseDelay + 1;
       audioBuffer.fill(0.0);
       (vad as any).loop();
 
@@ -212,6 +231,7 @@ describe('2-Frame Reactive PNGtuber Hardening & Regression Suite', () => {
       const resolvedDelayPlus1 = CharacterResolver.resolve(layers, snapshotDelayPlus1, 0, undefined, mouthConfig);
       expect(resolvedDelayPlus1.activeLayers[0].layer.role).toBe('mouth_closed');
       expect(resolvedDelayPlus1.voiceState).toBe('idle');
+      checkRendered(resolvedDelayPlus1, false);
 
       vad.stop();
     });
@@ -508,36 +528,11 @@ describe('2-Frame Reactive PNGtuber Hardening & Regression Suite', () => {
         },
       ];
 
-      // Simulate Quick2FrameModal handleApply logic with replaceLayers = false
-      const apply2Frame = (existingLayers: CharacterLayer[], frame1AssetId: string, frame2AssetId: string) => {
-        let foundClosedPrimary = false;
-        let foundOpenPrimary = false;
-
-        const processed = existingLayers.map((l) => {
-          if (l.role === 'mouth_closed') {
-            if (!foundClosedPrimary) {
-              foundClosedPrimary = true;
-              return { ...l, assetId: frame1AssetId, visible: true };
-            } else {
-              return { ...l, role: 'custom' as SemanticLayerRole, visible: false };
-            }
-          }
-          if (l.role === 'mouth_open') {
-            if (!foundOpenPrimary) {
-              foundOpenPrimary = true;
-              return { ...l, assetId: frame2AssetId, visible: true };
-            } else {
-              return { ...l, role: 'custom' as SemanticLayerRole, visible: false };
-            }
-          }
-          if (l.role === 'mouth_small' || l.role === 'mouth_medium' || l.role === 'mouth_wide') {
-            return { ...l, role: 'custom' as SemanticLayerRole, visible: false };
-          }
-          return l;
-        });
-
-        return processed;
-      };
+      // Call the production helper used by the modal, including its append path.
+      const apply2Frame = (layers: CharacterLayer[], closedId: string, openId: string) =>
+        applyReactive2FrameLayers(layers,
+          { ...initialLayers[1], id: 'new-idle', assetId: closedId },
+          { ...initialLayers[3], id: 'new-talking', assetId: openId }, false);
 
       const result1 = apply2Frame(initialLayers, 'new-frame1', 'new-frame2');
 

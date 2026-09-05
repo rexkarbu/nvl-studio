@@ -1,23 +1,82 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './LiveOutput.css';
 import { LiveReceiver, ConnectionState } from '../../core/sync/LiveReceiver';
 import { CharacterResolver } from '../../core/resolver/CharacterResolver';
 import { CanvasAvatarRenderer } from '../../core/renderer/CanvasAvatarRenderer';
-import { DEFAULT_PROJECT_MANIFEST } from '../../core/project/defaultProject';
+import { validateManifest } from '../../core/project/manifestSchema';
 import { ProjectManifest } from '../../core/project/types';
 import { AvatarParameters } from '../../core/parameters/types';
 import { IdleBobEngine } from '../../core/animation/IdleBobEngine';
-import { resolveAssetUrl } from '../../core/project/pathResolver';
+import { resolveAssetUrl } from '../../core/project/assetUrl';
 
 interface LiveOutputAppProps {
   projectId?: string;
   initialManifest?: ProjectManifest;
 }
 
-export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
-  projectId: propProjectId,
-  initialManifest,
-}) => {
+function getRouteProjectId(): string | undefined {
+  const routeMatch = window.location.pathname.match(/^\/live\/([a-zA-Z0-9_-]+)(?:\/|$)/)
+    ?? window.location.hash.match(/^#\/live\/([a-zA-Z0-9_-]+)(?:[/?]|$)/);
+  return routeMatch?.[1] ?? new URLSearchParams(window.location.search).get('project') ?? undefined;
+}
+
+export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({ projectId, initialManifest }) => {
+  const [routeProjectId, setRouteProjectId] = useState(getRouteProjectId);
+  const requestedId = routeProjectId ?? projectId;
+  const providedManifest = initialManifest && (!requestedId || initialManifest.projectId === requestedId)
+    ? initialManifest : undefined;
+  const [loaded, setLoaded] = useState<{ requestedId?: string; manifest: ProjectManifest } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onLocationChange = () => setRouteProjectId(getRouteProjectId());
+    window.addEventListener('popstate', onLocationChange);
+    window.addEventListener('hashchange', onLocationChange);
+    return () => {
+      window.removeEventListener('popstate', onLocationChange);
+      window.removeEventListener('hashchange', onLocationChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (providedManifest) return;
+    let cancelled = false;
+    setLoadError(null);
+    setLoaded(null);
+    const load = async () => {
+      try {
+        const response = await fetch('/api/project');
+        if (!response.ok) throw new Error('Project manifest could not be loaded');
+        const result = validateManifest(await response.json());
+        if (!result.valid || !result.manifest) throw new Error(result.error || 'Invalid project manifest');
+        if (requestedId && result.manifest.projectId !== requestedId) {
+          throw new Error('The requested project is not active in NVL Studio');
+        }
+        if (!cancelled) setLoaded({ requestedId, manifest: result.manifest });
+      } catch (error) {
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Project unavailable');
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [requestedId, providedManifest]);
+
+  const manifest = providedManifest ?? (loaded?.requestedId === requestedId ? loaded?.manifest : undefined);
+  if (!manifest) {
+    return (
+      <div className="live-output-container">
+        <canvas className="live-output-canvas" width={1920} height={1080} aria-label="Live avatar" />
+        {new URLSearchParams(window.location.search).get('debug') === '1' && (
+          <div className="live-status-pill" role="status">{loadError ?? 'Loading project...'}</div>
+        )}
+      </div>
+    );
+  }
+  // A project change resets parameters, renderer caches and the WebSocket together.
+  return <LiveOutputCanvas key={manifest.projectId} manifest={manifest} />;
+};
+
+const LiveOutputCanvas: React.FC<{ manifest: ProjectManifest }> = ({ manifest }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<CanvasAvatarRenderer | null>(null);
   const receiverRef = useRef<LiveReceiver | null>(null);
@@ -28,27 +87,14 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
     expression: 'neutral',
   });
 
-  const [manifest, setManifest] = useState<ProjectManifest>(initialManifest || DEFAULT_PROJECT_MANIFEST);
   const manifestRef = useRef<ProjectManifest>(manifest);
   manifestRef.current = manifest;
 
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
   const [lastSeq, setLastSeq] = useState<number>(0);
 
-  // Helper to load assets into the active renderer
-  const loadAssets = async (renderer: CanvasAvatarRenderer, assets: ProjectManifest['assets']) => {
-    for (const asset of assets) {
-      const assetUrl = resolveAssetUrl(asset.path, { version: manifestRef.current.metadata?.updatedAt });
-      try {
-        await renderer.registerAsset(asset.id, assetUrl);
-      } catch (err) {
-        console.error(`[LiveOutput] Failed to load asset ${asset.name} from ${assetUrl}:`, err);
-      }
-    }
-  };
-
   // Helper to re-render current frame with resolved transforms
-  const renderCurrentFrame = (offset: number = 0) => {
+  const renderCurrentFrame = useCallback((offset: number = 0) => {
     if (!rendererRef.current) return;
     const currentManifest = manifestRef.current;
     const effectiveMouthConfig = {
@@ -63,63 +109,9 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
       effectiveMouthConfig
     );
     rendererRef.current.render(resolved, currentManifest.idleConfig);
-  };
-
-  // Sync prop changes if initialManifest is updated externally
-  useEffect(() => {
-    if (initialManifest) {
-      setManifest(initialManifest);
-      manifestRef.current = initialManifest;
-      if (rendererRef.current) {
-        loadAssets(rendererRef.current, initialManifest.assets).then(() => {
-          renderCurrentFrame(0);
-        });
-      }
-    }
-  }, [initialManifest]);
-
-  // Fetch project manifest from local server (enables OBS Browser Source to load real project data)
-  useEffect(() => {
-    let isCancelled = false;
-    const fetchProjectManifest = async () => {
-      try {
-        const res = await fetch('/api/project');
-        if (res.ok) {
-          const data = await res.json();
-          if (!isCancelled && data && data.layers) {
-            setManifest(data);
-            manifestRef.current = data;
-            if (rendererRef.current) {
-              await loadAssets(rendererRef.current, data.assets);
-              renderCurrentFrame(0);
-            }
-          }
-        }
-      } catch {
-        // Fall back to initialManifest / DEFAULT_PROJECT_MANIFEST
-      }
-    };
-    fetchProjectManifest();
-    return () => {
-      isCancelled = true;
-    };
   }, []);
 
-  // Extract projectId from props, pathname, or hash
-  const getActiveProjectId = (): string => {
-    if (propProjectId) return propProjectId;
-    const path = window.location.pathname;
-    const match = path.match(/\/live\/([a-zA-Z0-9_-]+)/);
-    if (match) return match[1];
-
-    const hashMatch = window.location.hash.match(/#\/live\/([a-zA-Z0-9_-]+)/);
-    if (hashMatch) return hashMatch[1];
-
-    const searchParams = new URLSearchParams(window.location.search);
-    return searchParams.get('project') || 'default-avatar';
-  };
-
-  const projectId = getActiveProjectId();
+  const projectId = manifest.projectId;
   const isDebugMode = new URLSearchParams(window.location.search).get('debug') === '1';
   const isChroma =
     new URLSearchParams(window.location.search).get('bg') === 'green' ||
@@ -136,23 +128,28 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
     };
   }, [isChroma]);
 
-  // Initialize Canvas 2D Renderer & WebSocket connection once per projectId
+  // Asset loading is tied to this renderer and cannot complete into another project.
   useEffect(() => {
     if (!canvasRef.current) return;
-
-    // Initialize Canvas 2D Renderer
+    let cancelled = false;
     const renderer = new CanvasAvatarRenderer({
       canvas: canvasRef.current,
-      virtualWidth: manifestRef.current.canvas.width,
-      virtualHeight: manifestRef.current.canvas.height,
+      virtualWidth: manifest.canvas.width,
+      virtualHeight: manifest.canvas.height,
     });
     rendererRef.current = renderer;
-
-    // Preload initial assets
-    loadAssets(renderer, manifestRef.current.assets).then(() => {
-      renderCurrentFrame(0);
+    void Promise.all(manifest.assets.map((asset) => renderer.registerAsset(asset.id,
+      resolveAssetUrl(asset.path, { version: manifest.metadata.updatedAt })
+    ))).then(() => {
+      if (!cancelled) renderCurrentFrame(0);
     });
+    return () => {
+      cancelled = true;
+      if (rendererRef.current === renderer) rendererRef.current = null;
+    };
+  }, [manifest.assets, manifest.canvas.width, manifest.canvas.height, manifest.metadata.updatedAt, renderCurrentFrame]);
 
+  useEffect(() => {
     // Determine WebSocket URL
     const host = window.location.hostname || '127.0.0.1';
     const port = window.location.port || '17777';
@@ -188,9 +185,8 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
     return () => {
       receiver.disconnect();
       receiverRef.current = null;
-      rendererRef.current = null;
     };
-  }, [projectId]);
+  }, [projectId, renderCurrentFrame]);
 
   // Dedicated single render loop for Idle Bob animation
   useEffect(() => {
@@ -213,15 +209,16 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
     return () => {
       cancelAnimationFrame(animFrameId);
     };
-  }, [manifest.idleConfig?.enabled, manifest.idleConfig?.amplitude, manifest.idleConfig?.speed]);
+  }, [manifest.idleConfig?.enabled, manifest.idleConfig?.amplitude, manifest.idleConfig?.speed, renderCurrentFrame]);
 
   return (
     <div className="live-output-container">
       <canvas
         ref={canvasRef}
         className="live-output-canvas"
-        width={1920}
-        height={1080}
+        width={manifest.canvas.width}
+        height={manifest.canvas.height}
+        aria-label="Live avatar"
       />
       {isDebugMode && (
         <div className="live-status-pill">

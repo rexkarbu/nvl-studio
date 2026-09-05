@@ -649,7 +649,7 @@ export const App: React.FC = () => {
 
   // If this is the Live Output window / OBS Browser Source, render only the transparent canvas
   if (isLiveView) {
-    return <LiveOutputApp projectId={manifest.projectId} initialManifest={manifest} />;
+    return <LiveOutputApp initialManifest={isProjectOpen ? manifest : undefined} />;
   }
 
   return (

@@ -1,12 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   CharacterLayer,
   ProjectAssetEntry,
   ProjectManifest,
   IdleConfig,
-  SemanticLayerRole,
 } from '../../core/project/types';
-import { resolveAssetUrl } from '../../core/project/pathResolver';
+import { resolveAssetUrl } from '../../core/project/assetUrl';
+import { applyReactive2FrameLayers, getReactiveFrameAssetIds } from '../../core/project/reactive2Frame';
 
 export interface Quick2FrameModalProps {
   isOpen: boolean;
@@ -21,16 +21,23 @@ export interface Quick2FrameModalProps {
   }) => void;
 }
 
-export const Quick2FrameModal: React.FC<Quick2FrameModalProps> = ({
-  isOpen,
+export const Quick2FrameModal: React.FC<Quick2FrameModalProps> = (props) => {
+  if (!props.isOpen) return null;
+  // Closing or switching projects starts a fresh draft from the latest manifest.
+  return <Quick2FrameForm key={props.manifest.projectId} {...props} />;
+};
+
+const Quick2FrameForm: React.FC<Quick2FrameModalProps> = ({
   onClose,
   manifest,
   serverPort,
   onApply2FrameRig,
 }) => {
-  const [allAssets, setAllAssets] = useState<ProjectAssetEntry[]>(manifest.assets);
-  const [frame1AssetId, setFrame1AssetId] = useState<string>('');
-  const [frame2AssetId, setFrame2AssetId] = useState<string>('');
+  const [importedAssets, setImportedAssets] = useState<ProjectAssetEntry[]>([]);
+  const allAssets = [...manifest.assets, ...importedAssets.filter((asset) =>
+    !manifest.assets.some((existing) => existing.id === asset.id))];
+  const [frame1AssetId, setFrame1AssetId] = useState(() => getReactiveFrameAssetIds(manifest)[0]);
+  const [frame2AssetId, setFrame2AssetId] = useState(() => getReactiveFrameAssetIds(manifest)[1]);
   const [enableDimming, setEnableDimming] = useState<boolean>(
     manifest.idleConfig?.dimWhenSilent ?? true
   );
@@ -45,32 +52,8 @@ export const Quick2FrameModal: React.FC<Quick2FrameModalProps> = ({
   const fileInputRef1 = useRef<HTMLInputElement>(null);
   const fileInputRef2 = useRef<HTMLInputElement>(null);
 
-  // Sync assets from manifest
-  useEffect(() => {
-    setAllAssets(manifest.assets);
-
-    // Try auto-selecting best candidates for Frame 1 (closed/idle) and Frame 2 (open/talk)
-    const closedCandidate = manifest.assets.find(
-      (a) => /closed|tutup|diam|idle|silent|frame1/i.test(a.name) || /mouth-closed/i.test(a.path)
-    );
-    const openCandidate = manifest.assets.find(
-      (a) => /open|buka|bicara|talk|speak|frame2/i.test(a.name) || /mouth-open/i.test(a.path)
-    );
-
-    if (closedCandidate) {
-      setFrame1AssetId(closedCandidate.id);
-    } else if (manifest.assets.length > 0) {
-      setFrame1AssetId(manifest.assets[0].id);
-    }
-
-    if (openCandidate) {
-      setFrame2AssetId(openCandidate.id);
-    } else if (manifest.assets.length > 1) {
-      setFrame2AssetId(manifest.assets[1].id);
-    }
-  }, [manifest.assets, isOpen]);
-
-  if (!isOpen) return null;
+  const hasValidFrames = [frame1AssetId, frame2AssetId].every((id) =>
+    allAssets.some((asset) => asset.id === id));
 
   // Resolve image source URL for thumbnail previews
   const getAssetPreviewUrl = (assetId: string): string => {
@@ -89,7 +72,7 @@ export const Quick2FrameModal: React.FC<Quick2FrameModalProps> = ({
         const res = await (window as any).nvlDesktop.importPng();
         if (res.assets && res.assets.length > 0) {
           const imported = res.assets[0];
-          setAllAssets((prev) => {
+          setImportedAssets((prev) => {
             const next = [...prev];
             if (!next.some((a) => a.id === imported.id)) {
               next.push(imported);
@@ -128,7 +111,7 @@ export const Quick2FrameModal: React.FC<Quick2FrameModalProps> = ({
         path: dataUrl,
         format: 'png',
       };
-      setAllAssets((prev) => [...prev, newAsset]);
+      setImportedAssets((prev) => [...prev, newAsset]);
       if (targetFrame === 1) {
         setFrame1AssetId(newAsset.id);
       } else {
@@ -139,7 +122,7 @@ export const Quick2FrameModal: React.FC<Quick2FrameModalProps> = ({
   };
 
   const handleApply = () => {
-    if (!frame1AssetId || !frame2AssetId) return;
+    if (!hasValidFrames) return;
 
     const centerCanvasX = Math.round(manifest.canvas.width / 2);
     const centerCanvasY = Math.round(manifest.canvas.height / 2);
@@ -176,79 +159,7 @@ export const Quick2FrameModal: React.FC<Quick2FrameModalProps> = ({
       zIndex: 1,
     };
 
-    let updatedLayers: CharacterLayer[];
-    if (replaceLayers) {
-      updatedLayers = [idleLayer, talkingLayer];
-    } else {
-      let foundClosedPrimary = false;
-      let foundOpenPrimary = false;
-
-      const processedLayers: CharacterLayer[] = manifest.layers.map((l) => {
-        // Handle mouth_closed
-        if (l.role === 'mouth_closed') {
-          if (!foundClosedPrimary) {
-            foundClosedPrimary = true;
-            // Update primary mouth_closed with new asset, preserve transform and zIndex
-            return {
-              ...l,
-              assetId: frame1AssetId,
-              visible: true,
-            };
-          } else {
-            // Deactivate duplicate mouth_closed
-            return {
-              ...l,
-              role: 'custom' as SemanticLayerRole,
-              visible: false,
-            };
-          }
-        }
-
-        // Handle mouth_open
-        if (l.role === 'mouth_open') {
-          if (!foundOpenPrimary) {
-            foundOpenPrimary = true;
-            // Update primary mouth_open with new asset, preserve transform and zIndex
-            return {
-              ...l,
-              assetId: frame2AssetId,
-              visible: true,
-            };
-          } else {
-            // Deactivate duplicate mouth_open
-            return {
-              ...l,
-              role: 'custom' as SemanticLayerRole,
-              visible: false,
-            };
-          }
-        }
-
-        // Deactivate superseded multi-frame mouth layers so they do not render
-        if (l.role === 'mouth_small' || l.role === 'mouth_medium' || l.role === 'mouth_wide') {
-          return {
-            ...l,
-            role: 'custom' as SemanticLayerRole,
-            visible: false,
-          };
-        }
-
-        // Preserve non-mouth layers (body, accessory, custom, eye_open, eye_closed) untouched
-        return l;
-      });
-
-      // If existing layers had no mouth_closed or mouth_open, append them
-      if (!foundClosedPrimary) {
-        const maxZ = processedLayers.reduce((max, l) => Math.max(max, l.zIndex), -1);
-        processedLayers.push({ ...idleLayer, zIndex: maxZ + 1 });
-      }
-      if (!foundOpenPrimary) {
-        const maxZ = processedLayers.reduce((max, l) => Math.max(max, l.zIndex), -1);
-        processedLayers.push({ ...talkingLayer, zIndex: maxZ + 1 });
-      }
-
-      updatedLayers = processedLayers;
-    }
+    const updatedLayers = applyReactive2FrameLayers(manifest.layers, idleLayer, talkingLayer, replaceLayers);
 
     const updatedIdleConfig: IdleConfig = {
       enabled: enableBobbing,
@@ -304,6 +215,9 @@ export const Quick2FrameModal: React.FC<Quick2FrameModalProps> = ({
 
       <div
         className="modal-container"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Quick 2-Frame Avatar Setup"
         style={{
           background: '#16161e',
           border: '1px solid #2e2c40',
@@ -432,6 +346,7 @@ export const Quick2FrameModal: React.FC<Quick2FrameModalProps> = ({
               </div>
 
               <select
+                aria-label="Frame diam"
                 value={frame1AssetId}
                 onChange={(e) => setFrame1AssetId(e.target.value)}
                 style={{
@@ -538,6 +453,7 @@ export const Quick2FrameModal: React.FC<Quick2FrameModalProps> = ({
               </div>
 
               <select
+                aria-label="Frame bicara"
                 value={frame2AssetId}
                 onChange={(e) => setFrame2AssetId(e.target.value)}
                 style={{
@@ -608,6 +524,7 @@ export const Quick2FrameModal: React.FC<Quick2FrameModalProps> = ({
                   min="0.40"
                   max="0.95"
                   step="0.05"
+                  aria-label="Kecerahan saat diam"
                   value={idleBrightness}
                   onChange={(e) => setIdleBrightness(Number(e.target.value))}
                 />
@@ -658,10 +575,10 @@ export const Quick2FrameModal: React.FC<Quick2FrameModalProps> = ({
             type="button"
             className="action-btn btn-primary"
             onClick={handleApply}
-            disabled={!frame1AssetId || !frame2AssetId}
+            disabled={!hasValidFrames}
             style={{
-              opacity: !frame1AssetId || !frame2AssetId ? 0.5 : 1,
-              cursor: !frame1AssetId || !frame2AssetId ? 'not-allowed' : 'pointer',
+              opacity: !hasValidFrames ? 0.5 : 1,
+              cursor: !hasValidFrames ? 'not-allowed' : 'pointer',
             }}
           >
             ✨ Terapkan Avatar 2-Frame
