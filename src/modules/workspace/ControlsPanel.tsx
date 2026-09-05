@@ -132,6 +132,12 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
     const val = parseInt(e.target.value, 10);
     setReleaseDelay(val);
     audioVAD.updateConfig({ releaseDelayMs: val });
+    if (manifest && onUpdateAudioConfig) {
+      onUpdateAudioConfig({
+        ...manifest.audioConfig,
+        releaseDelayMs: val,
+      });
+    }
   };
 
   const [isCalibrating, setIsCalibrating] = useState<boolean>(false);
@@ -423,11 +429,11 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
                 </div>
 
                 <div className="slider-row">
-                  <label>Release Delay ({releaseDelay}ms) — mouth hold time</label>
+                  <label>Speaking Release Delay ({releaseDelay}ms) — jeda mulut & kecerahan</label>
                   <input
                     type="range"
                     min="50"
-                    max="500"
+                    max="1000"
                     step="25"
                     value={releaseDelay}
                     onChange={handleReleaseDelayChange}

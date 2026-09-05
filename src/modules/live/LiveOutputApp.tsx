@@ -60,7 +60,7 @@ export const LiveOutputApp: React.FC<LiveOutputAppProps> = ({
       currentManifest.expressionConfig,
       currentManifest.mouthConfig
     );
-    rendererRef.current.render(resolved);
+    rendererRef.current.render(resolved, currentManifest.idleConfig);
   };
 
   // Sync prop changes if initialManifest is updated externally

@@ -89,7 +89,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         manifest.expressionConfig,
         manifest.mouthConfig
       );
-      renderer.render(resolved);
+      renderer.render(resolved, manifest.idleConfig);
 
       // 2. Render selection overlay if a layer is selected
       if (selectedLayerId) {
@@ -102,7 +102,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         }
       }
     },
-    [manifest.layers, store, selectedLayerId, manifest.expressionConfig, manifest.mouthConfig]
+    [manifest.layers, store, selectedLayerId, manifest.expressionConfig, manifest.mouthConfig, manifest.idleConfig]
   );
 
   // Initialize Canvas 2D Renderer & load assets

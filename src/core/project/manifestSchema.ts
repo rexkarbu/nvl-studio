@@ -151,6 +151,17 @@ export function validateManifest(data: unknown): ValidationResult {
     if (typeof obj.idleConfig.speed !== 'number' || obj.idleConfig.speed <= 0) {
       return { valid: false, error: 'idleConfig.speed must be a positive number' };
     }
+    if (obj.idleConfig.dimWhenSilent !== undefined && typeof obj.idleConfig.dimWhenSilent !== 'boolean') {
+      return { valid: false, error: 'idleConfig.dimWhenSilent must be a boolean' };
+    }
+    if (
+      obj.idleConfig.idleBrightness !== undefined &&
+      (typeof obj.idleConfig.idleBrightness !== 'number' ||
+        obj.idleConfig.idleBrightness < 0.1 ||
+        obj.idleConfig.idleBrightness > 1.0)
+    ) {
+      return { valid: false, error: 'idleConfig.idleBrightness must be a number between 0.1 and 1.0' };
+    }
   }
 
   // 8. blinkConfig (optional)

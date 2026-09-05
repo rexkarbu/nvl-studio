@@ -14,6 +14,7 @@ interface LayerPanelProps {
   onDeleteLayer: (layerId: string) => void;
   onImportPng: () => void;
   onAutoAssignRoles?: () => void;
+  onOpenQuick2Frame?: () => void;
   isImporting?: boolean;
 }
 
@@ -27,6 +28,7 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({
   onDeleteLayer,
   onImportPng,
   onAutoAssignRoles,
+  onOpenQuick2Frame,
   isImporting = false,
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -81,6 +83,16 @@ export const LayerPanel: React.FC<LayerPanelProps> = ({
         </div>
 
         <div style={{ display: 'flex', gap: '6px' }}>
+          {onOpenQuick2Frame && (
+            <button
+              className="action-btn btn-secondary"
+              style={{ fontSize: '11px', padding: '5px 8px' }}
+              onClick={onOpenQuick2Frame}
+              title="Quick setup for 2-frame PNGtuber avatar (Idle & Talking photos)"
+            >
+              <span>🎭 2-Frame</span>
+            </button>
+          )}
           {onAutoAssignRoles && (
             <button
               className="action-btn btn-secondary"

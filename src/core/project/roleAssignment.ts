@@ -181,6 +181,7 @@ export interface RoleValidationWarning {
 
 export interface RoleValidationResult {
   isValid: boolean;
+  is2FrameReactive?: boolean;
   warnings: RoleValidationWarning[];
   missingRoles: SemanticLayerRole[];
   mappedRoles: Record<SemanticLayerRole, string | null>; // role -> layer name
@@ -190,6 +191,7 @@ export interface RoleValidationResult {
  * Validates whether all core PNGtuber semantic roles are assigned.
  * Produces user-friendly, specific warning descriptions.
  * For open mouth: accepts any of mouth_open, mouth_small, mouth_medium, or mouth_wide.
+ * Recognizes 2-Frame Reactive Rigs (mouth_closed + open mouth without separate body/eyes) as valid.
  */
 export function validateRoleMapping(layers: CharacterLayer[]): RoleValidationResult {
   const baseRequiredRoles: { role: SemanticLayerRole; message: string }[] = [
@@ -230,6 +232,34 @@ export function validateRoleMapping(layers: CharacterLayer[]): RoleValidationRes
     }
   }
 
+  // Open mouth validation: any of mouth_open, mouth_small, mouth_medium, mouth_wide satisfies it
+  const hasOpenMouth = Boolean(
+    mappedRoles.mouth_open ||
+    mappedRoles.mouth_small ||
+    mappedRoles.mouth_medium ||
+    mappedRoles.mouth_wide
+  );
+
+  // Check if this is a 2-Frame Reactive Rig (mouth_closed + open mouth, with no dedicated body or eyes)
+  const is2FrameReactive = Boolean(
+    mappedRoles.mouth_closed &&
+    hasOpenMouth &&
+    !mappedRoles.body &&
+    !mappedRoles.eye_open &&
+    !mappedRoles.eye_closed &&
+    layers.length >= 2
+  );
+
+  if (is2FrameReactive) {
+    return {
+      isValid: true,
+      is2FrameReactive: true,
+      warnings: [],
+      missingRoles: [],
+      mappedRoles,
+    };
+  }
+
   const warnings: RoleValidationWarning[] = [];
   const missingRoles: SemanticLayerRole[] = [];
 
@@ -243,14 +273,6 @@ export function validateRoleMapping(layers: CharacterLayer[]): RoleValidationRes
     }
   }
 
-  // Open mouth validation: any of mouth_open, mouth_small, mouth_medium, mouth_wide satisfies it
-  const hasOpenMouth = Boolean(
-    mappedRoles.mouth_open ||
-    mappedRoles.mouth_small ||
-    mappedRoles.mouth_medium ||
-    mappedRoles.mouth_wide
-  );
-
   if (!hasOpenMouth) {
     missingRoles.push('mouth_open');
     warnings.push({
@@ -261,6 +283,7 @@ export function validateRoleMapping(layers: CharacterLayer[]): RoleValidationRes
 
   return {
     isValid: missingRoles.length === 0,
+    is2FrameReactive: false,
     warnings,
     missingRoles,
     mappedRoles,
@@ -294,11 +317,11 @@ const AUTO_ASSIGN_PATTERNS: { role: SemanticLayerRole; regex: RegExp }[] = [
   },
   {
     role: 'mouth_open',
-    regex: /(?:mouth.*open|talk|bicara|mangap|mouth_open|mouth-open)/i,
+    regex: /(?:mouth.*open|talk|speak|bicara|mangap|ngomong|buka|frame2|frame-2|mouth_open|mouth-open)/i,
   },
   {
     role: 'mouth_closed',
-    regex: /(?:mouth.*close|idle|diam|mingkem|mouth_closed|mouth-close)/i,
+    regex: /(?:mouth.*close|idle|quiet|silent|diam|tutup|mingkem|frame1|frame-1|mouth_closed|mouth-close)/i,
   },
   {
     role: 'body',

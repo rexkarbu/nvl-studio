@@ -6,7 +6,7 @@ import { AudioVAD } from './core/audio/AudioVAD';
 import { LiveBroadcaster } from './core/sync/LiveBroadcaster';
 import { HotkeyManager } from './core/input/HotkeyManager';
 import { DEFAULT_PROJECT_MANIFEST, DEFAULT_EXPRESSIONS, DEFAULT_HOTKEYS } from './core/project/defaultProject';
-import { CharacterLayer, ProjectManifest, IdleConfig, BlinkSettings, ExpressionConfig, MouthConfig } from './core/project/types';
+import { CharacterLayer, ProjectManifest, IdleConfig, BlinkSettings, ExpressionConfig, MouthConfig, ProjectAssetEntry } from './core/project/types';
 
 import { TopMenuBar } from './modules/workspace/TopMenuBar';
 import { LayerPanel } from './modules/workspace/LayerPanel';
@@ -17,6 +17,7 @@ import { BroadcastPanel } from './modules/workspace/BroadcastPanel';
 import { LiveOutputApp } from './modules/live/LiveOutputApp';
 import { ValidationBanner } from './modules/workspace/ValidationBanner';
 import { WelcomeScreen } from './modules/workspace/WelcomeScreen';
+import { Quick2FrameModal } from './modules/workspace/Quick2FrameModal';
 import { useDirtyState } from './modules/workspace/useDirtyState';
 import { showMessageBox, showConfirmDialog } from './modules/workspace/dialogUtils';
 import { SemanticLayerRole } from './core/project/types';
@@ -55,6 +56,7 @@ export const App: React.FC = () => {
   const [isProjectOpen, setIsProjectOpen] = useState<boolean>(false);
   const [isLoadingProject, setIsLoadingProject] = useState<boolean>(false);
   const [isImportingPng, setIsImportingPng] = useState<boolean>(false);
+  const [isQuick2FrameOpen, setIsQuick2FrameOpen] = useState<boolean>(false);
 
   const { isDirty, markDirty, markClean } = useDirtyState(false);
 
@@ -355,6 +357,28 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleApply2FrameRig = ({
+    layers,
+    assets,
+    idleConfig,
+  }: {
+    layers: CharacterLayer[];
+    assets: ProjectAssetEntry[];
+    idleConfig: IdleConfig;
+  }) => {
+    setManifest((prev) => ({
+      ...prev,
+      layers,
+      assets,
+      idleConfig,
+      metadata: { ...prev.metadata, updatedAt: new Date().toISOString() },
+    }));
+    if (layers.length > 0) {
+      setSelectedLayerId(layers[0].id);
+    }
+    markDirty();
+  };
+
   const handleReorderLayers = (updatedLayers: CharacterLayer[]) => {
     setManifest((prev) => ({
       ...prev,
@@ -634,6 +658,7 @@ export const App: React.FC = () => {
             onDeleteLayer={handleDeleteLayer}
             onImportPng={handleImportPng}
             onAutoAssignRoles={handleAutoAssignRoles}
+            onOpenQuick2Frame={() => setIsQuick2FrameOpen(true)}
             isImporting={isImportingPng}
           />
 
@@ -700,6 +725,15 @@ export const App: React.FC = () => {
         </aside>
       </main>
       )}
+
+      {/* Quick 2-Frame Avatar Setup Modal */}
+      <Quick2FrameModal
+        isOpen={isQuick2FrameOpen}
+        onClose={() => setIsQuick2FrameOpen(false)}
+        manifest={manifest}
+        serverPort={serverPort || undefined}
+        onApply2FrameRig={handleApply2FrameRig}
+      />
     </div>
   );
 };

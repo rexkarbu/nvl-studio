@@ -1,4 +1,5 @@
 import { ResolvedVisualState } from '../resolver/types';
+import { IdleConfig } from '../project/types';
 
 export interface CanvasRendererOptions {
   canvas: HTMLCanvasElement;
@@ -94,7 +95,9 @@ export class CanvasAvatarRenderer {
 
   public onMissingAssetsChange(cb: (missing: string[]) => void): () => void {
     this.onMissingChangeCbs.add(cb);
-    return () => this.onMissingChangeCbs.delete(cb);
+    return () => {
+      this.onMissingChangeCbs.delete(cb);
+    };
   }
 
   private notifyMissingChange(): void {
@@ -107,63 +110,74 @@ export class CanvasAvatarRenderer {
   /**
    * Renders the resolved visual state.
    * Guaranteed 100% transparent background with safe placeholder fallback for missing assets.
+   * Supports optional idle dimming (darker when silent, full brightness when talking).
    */
-  public render(state: ResolvedVisualState): void {
+  public render(state: ResolvedVisualState, idleConfig?: IdleConfig): void {
     // Clear entire canvas to transparent
     this.ctx.clearRect(0, 0, this.virtualWidth, this.virtualHeight);
 
-    for (const item of state.activeLayers) {
-      // Performance optimization: skip transformation and drawing for invisible layers
-      if (item.layer.visible === false || item.opacity <= 0) {
-        continue;
+    // Apply idle dimming filter if enabled and avatar is currently silent/idle
+    const shouldDim = Boolean(idleConfig?.dimWhenSilent && state.voiceState === 'idle');
+    const brightness = Math.max(0.1, Math.min(1.0, idleConfig?.idleBrightness ?? 0.75));
+    this.ctx.filter = shouldDim ? `brightness(${Math.round(brightness * 100)}%)` : 'none';
+
+    try {
+      for (const item of state.activeLayers) {
+        // Performance optimization: skip transformation and drawing for invisible layers
+        if (item.layer.visible === false || item.opacity <= 0) {
+          continue;
+        }
+
+        const img = this.assetCache.get(item.assetId);
+
+        this.ctx.save();
+        this.ctx.globalAlpha = Math.max(0, Math.min(1, item.opacity));
+
+        // Translate to layer center/position
+        this.ctx.translate(item.x, item.y);
+
+        // Rotate if specified
+        if (item.rotation !== 0) {
+          this.ctx.rotate((item.rotation * Math.PI) / 180);
+        }
+
+        // Scale if specified
+        if (item.scaleX !== 1 || item.scaleY !== 1) {
+          this.ctx.scale(item.scaleX, item.scaleY);
+        }
+
+        if (img && img.complete && img.naturalWidth > 0) {
+          // Draw image centered around (0, 0)
+          const w = img.naturalWidth || img.width;
+          const h = img.naturalHeight || img.height;
+          this.ctx.drawImage(img, -w / 2, -h / 2, w, h);
+        } else {
+          // Missing asset fallback: render dashed placeholder rectangle with warning label
+          const pw = 240;
+          const ph = 240;
+          this.ctx.fillStyle = 'rgba(255, 84, 112, 0.25)';
+          this.ctx.strokeStyle = '#ff5470';
+          this.ctx.lineWidth = 4;
+          this.ctx.setLineDash([10, 8]);
+          this.ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
+          this.ctx.strokeRect(-pw / 2, -ph / 2, pw, ph);
+
+          this.ctx.setLineDash([]);
+          this.ctx.fillStyle = '#ffffff';
+          this.ctx.font = 'bold 16px "Plus Jakarta Sans", sans-serif';
+          this.ctx.textAlign = 'center';
+          this.ctx.textBaseline = 'middle';
+          this.ctx.fillText(`Missing Asset:`, 0, -14);
+          this.ctx.font = '13px monospace';
+          this.ctx.fillStyle = '#ff8499';
+          this.ctx.fillText(item.layer.name || item.assetId, 0, 14);
+        }
+
+        this.ctx.restore();
       }
-
-      const img = this.assetCache.get(item.assetId);
-
-      this.ctx.save();
-      this.ctx.globalAlpha = Math.max(0, Math.min(1, item.opacity));
-
-      // Translate to layer center/position
-      this.ctx.translate(item.x, item.y);
-
-      // Rotate if specified
-      if (item.rotation !== 0) {
-        this.ctx.rotate((item.rotation * Math.PI) / 180);
-      }
-
-      // Scale if specified
-      if (item.scaleX !== 1 || item.scaleY !== 1) {
-        this.ctx.scale(item.scaleX, item.scaleY);
-      }
-
-      if (img && img.complete && img.naturalWidth > 0) {
-        // Draw image centered around (0, 0)
-        const w = img.naturalWidth || img.width;
-        const h = img.naturalHeight || img.height;
-        this.ctx.drawImage(img, -w / 2, -h / 2, w, h);
-      } else {
-        // Missing asset fallback: render dashed placeholder rectangle with warning label
-        const pw = 240;
-        const ph = 240;
-        this.ctx.fillStyle = 'rgba(255, 84, 112, 0.25)';
-        this.ctx.strokeStyle = '#ff5470';
-        this.ctx.lineWidth = 4;
-        this.ctx.setLineDash([10, 8]);
-        this.ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
-        this.ctx.strokeRect(-pw / 2, -ph / 2, pw, ph);
-
-        this.ctx.setLineDash([]);
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.font = 'bold 16px "Plus Jakarta Sans", sans-serif';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(`Missing Asset:`, 0, -14);
-        this.ctx.font = '13px monospace';
-        this.ctx.fillStyle = '#ff8499';
-        this.ctx.fillText(item.layer.name || item.assetId, 0, 14);
-      }
-
-      this.ctx.restore();
+    } finally {
+      // Guarantee filter is reset to none so overlays, gizmos, and next frames are pristine
+      this.ctx.filter = 'none';
     }
   }
 
@@ -196,6 +210,7 @@ export class CanvasAvatarRenderer {
   ): void {
     const ctx = this.ctx;
     ctx.save();
+    ctx.filter = 'none';
 
     // Translate to layer center
     ctx.translate(layer.x, layer.y);

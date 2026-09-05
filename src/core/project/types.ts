@@ -39,6 +39,10 @@ export interface IdleConfig {
   enabled: boolean;
   amplitude: number; // 0 - 50 px, default 8
   speed: number;     // 0.1 - 5.0, default 1.5
+  /** Whether avatar dims (becomes darker) in idle/silent state and brightens when speaking */
+  dimWhenSilent?: boolean;
+  /** Brightness multiplier when silent (0.20 - 1.00, default 0.75 = 75% brightness) */
+  idleBrightness?: number;
 }
 
 export interface BlinkSettings {

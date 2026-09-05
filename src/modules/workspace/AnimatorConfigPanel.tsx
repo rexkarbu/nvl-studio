@@ -175,12 +175,24 @@ export const AnimatorConfigPanel: React.FC<AnimatorConfigPanelProps> = ({
           </span>
         </div>
         <div className="card-content">
-          <div className="row-actions" style={{ marginBottom: '12px' }}>
+          <div className="row-actions" style={{ marginBottom: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button
               className={`action-btn ${idleConfig.enabled ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => onUpdateIdleConfig({ ...idleConfig, enabled: !idleConfig.enabled })}
             >
               Vertical Bob: {idleConfig.enabled ? 'ON' : 'OFF'}
+            </button>
+            <button
+              className={`action-btn ${idleConfig.dimWhenSilent ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() =>
+                onUpdateIdleConfig({
+                  ...idleConfig,
+                  dimWhenSilent: !idleConfig.dimWhenSilent,
+                })
+              }
+              title="Otomatis meredupkan/menggelapkan avatar saat diam, dan cerah kembali saat berbicara"
+            >
+              Idle Dimming: {idleConfig.dimWhenSilent ? 'ON' : 'OFF'} 🌙
             </button>
           </div>
 
@@ -224,9 +236,29 @@ export const AnimatorConfigPanel: React.FC<AnimatorConfigPanelProps> = ({
                 }
               />
             </div>
+
+            <div className="slider-row">
+              <label>
+                Idle Brightness ({Math.round((idleConfig.idleBrightness ?? 0.75) * 100)}%) — kegelapan saat diam
+              </label>
+              <input
+                type="range"
+                min="0.40"
+                max="0.95"
+                step="0.05"
+                value={idleConfig.idleBrightness ?? 0.75}
+                disabled={!idleConfig.dimWhenSilent}
+                onChange={(e) =>
+                  onUpdateIdleConfig({
+                    ...idleConfig,
+                    idleBrightness: Number(e.target.value),
+                  })
+                }
+              />
+            </div>
           </div>
           <p className="card-hint">
-            Idle bobbing applies smoothly to the body layer while idle and pauses automatically during speech.
+            Idle bobbing dan dimming diaplikasikan saat avatar diam, dan kembali cerah & aktif secara otomatis saat berbicara.
           </p>
         </div>
       </div>
@@ -462,12 +494,12 @@ export const AnimatorConfigPanel: React.FC<AnimatorConfigPanelProps> = ({
 
             <div className="slider-row">
               <label>
-                Release Delay ({audioConfig.releaseDelayMs}ms) — mouth hold time
+                Speaking Release Delay ({audioConfig.releaseDelayMs}ms) — jeda mulut & kecerahan
               </label>
               <input
                 type="range"
                 min="50"
-                max="500"
+                max="1000"
                 step="25"
                 value={audioConfig.releaseDelayMs}
                 onChange={(e) => {

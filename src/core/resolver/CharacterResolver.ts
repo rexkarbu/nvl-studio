@@ -31,6 +31,9 @@ export class CharacterResolver {
     // Determine the single active mouth role based on continuous/shape mapping and available frames
     const activeMouthRole = resolveActiveMouthRole(parameters, availableMouthRoles, mouthConfig);
 
+    // Determine if rig has a dedicated body layer, or if 2-frame mouth_closed acts as the bobbing base
+    const hasBodyRole = layers.some((l) => l.role === 'body');
+
     // 1. Role-based visibility evaluation & 2. Idle bob offset
     for (const layer of layers) {
       if (!layer.visible) {
@@ -68,9 +71,9 @@ export class CharacterResolver {
       }
 
       if (shouldRender) {
-        // Idle bob applies to body layer during idle state (!parameters.voiceActivity)
-        const isBody = layer.role === 'body';
-        const applyBob = isBody && !parameters.voiceActivity && idleBobOffset !== 0;
+        // Idle bob applies to body layer (or mouth_closed if 2-frame rig without body) during idle state
+        const isBobTarget = layer.role === 'body' || (!hasBodyRole && layer.role === 'mouth_closed');
+        const applyBob = isBobTarget && !parameters.voiceActivity && idleBobOffset !== 0;
         const resolvedY = applyBob ? layer.y + idleBobOffset : layer.y;
 
         activeLayers.push({
@@ -99,8 +102,8 @@ export class CharacterResolver {
             // Apply only properties that are explicitly defined in the override (additive)
             if (override.x !== undefined) item.x = override.x;
             if (override.y !== undefined) {
-              const isBody = item.layer.role === 'body';
-              const applyBob = isBody && !parameters.voiceActivity && idleBobOffset !== 0;
+              const isBobTarget = item.layer.role === 'body' || (!hasBodyRole && item.layer.role === 'mouth_closed');
+              const applyBob = isBobTarget && !parameters.voiceActivity && idleBobOffset !== 0;
               item.y = applyBob ? override.y + idleBobOffset : override.y;
             }
             if (override.scaleX !== undefined) item.scaleX = override.scaleX;
